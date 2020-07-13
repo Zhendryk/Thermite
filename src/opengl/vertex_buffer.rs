@@ -19,9 +19,9 @@ impl VertexBuffer {
     ///
     /// # Returns
     ///
-    /// A newly initialized `VertexBuffer`
-    pub fn new(gl: &gl::Gl) -> VertexBuffer {
-        let mut id = 0;
+    /// A newly initialized `VertexBuffer` (unbound)
+    pub fn new(gl: &gl::Gl) -> Self {
+        let mut id: GLuint = 0;
         unsafe {
             gl.GenBuffers(1, &mut id);
         }
@@ -29,6 +29,11 @@ impl VertexBuffer {
             gl: gl.clone(),
             id: id,
         }
+    }
+
+    /// Returns the OpenGL GLuint id of this `VertexBuffer`
+    pub fn id(&self) -> GLuint {
+        self.id
     }
 
     /// Bind this `VertexBuffer` to the OpenGL `GL_ARRAY_BUFFER` target

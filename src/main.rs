@@ -3,7 +3,7 @@ use glfw::{self, Action, Context, Key};
 use std::{path::Path, rc::Rc, sync::mpsc::Receiver};
 
 pub mod opengl;
-use opengl::{shaders, vertex_buffer::VertexBuffer};
+use opengl::{shaders, vertex_array::VertexArray, vertex_buffer::VertexBuffer};
 
 pub mod resources;
 use resources::Resource;
@@ -51,11 +51,8 @@ fn main() {
     vbo.buffer_data(&vertices, gl::STATIC_DRAW);
     vbo.unbind();
 
-    let mut vao = 0;
-    unsafe {
-        gl.GenVertexArrays(1, &mut vao);
-        gl.BindVertexArray(vao);
-    }
+    let vao = VertexArray::new(&gl);
+    vao.bind();
     vbo.bind();
 
     unsafe {
@@ -71,9 +68,7 @@ fn main() {
     }
 
     vbo.unbind();
-    unsafe {
-        gl.BindVertexArray(0);
-    }
+    vao.unbind();
 
     // Uncomment this to draw wireframe polygons
     // unsafe {
@@ -87,7 +82,7 @@ fn main() {
             gl.ClearColor(0.2, 0.3, 0.3, 1.0);
             gl.Clear(gl::COLOR_BUFFER_BIT);
             shader_program.use_program();
-            gl.BindVertexArray(vao);
+            vao.bind();
             gl.DrawArrays(gl::TRIANGLES, 0, 3);
         }
 

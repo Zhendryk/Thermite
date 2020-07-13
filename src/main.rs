@@ -1,6 +1,6 @@
 use gl::{self, types::*};
 use glfw::{self, Action, Context, Key};
-use std::{os::raw::c_void, path::Path, rc::Rc, sync::mpsc::Receiver};
+use std::{path::Path, rc::Rc, sync::mpsc::Receiver};
 
 pub mod opengl;
 use opengl::{shaders, vertex_buffer::VertexBuffer};

@@ -1,35 +1,59 @@
 use gl::{
     self,
-    types::{GLfloat, GLsizei, GLsizeiptr, GLuint},
+    types::{GLenum, GLfloat, GLsizei, GLsizeiptr, GLuint},
 };
 use std::os::raw::c_void;
 
-#[derive(Default)]
+/// A `VertexBuffer` to store raw vertex information for graphical rendering
 pub struct VertexBuffer {
-    // gl: gl::Gl, // This is a reference counted pointer
-    id: u32,
+    gl: gl::Gl, // This is a reference counted pointer (C++ std::shared_pointer equivalent)
+    id: GLuint,
 }
 
 impl VertexBuffer {
-    pub fn new() -> Self {
-        Default::default()
-    }
-
-    pub fn bind(&mut self, gl: &gl::Gl) {
+    /// Create a new Vertex Buffer Object (vbo)
+    ///
+    /// # Parameters
+    ///
+    /// - `gl`: Reference counted pointer to the current OpenGL context
+    ///
+    /// # Returns
+    ///
+    /// A newly initialized `VertexBuffer`
+    pub fn new(gl: &gl::Gl) -> VertexBuffer {
+        let mut id = 0;
         unsafe {
-            gl.BindBuffer(gl::ARRAY_BUFFER, self.id);
+            gl.GenBuffers(1, &mut id);
+        }
+        VertexBuffer {
+            gl: gl.clone(),
+            id: id,
         }
     }
 
-    pub fn unbind(&self, gl: &gl::Gl) {
+    /// Bind this `VertexBuffer` to the OpenGL `GL_ARRAY_BUFFER` target
+    pub fn bind(&self) {
         unsafe {
-            gl.BindBuffer(gl::ARRAY_BUFFER, 0);
+            self.gl.BindBuffer(gl::ARRAY_BUFFER, self.id);
         }
     }
 
-    pub fn buffer_data(&self, gl: &gl::Gl, vertices: &[f32], mode: gl::types::GLenum) {
+    /// Unbind this `VertexBuffer` from the OpenGL `GL_ARRAY_BUFFER` target
+    pub fn unbind(&self) {
         unsafe {
-            gl.BufferData(
+            self.gl.BindBuffer(gl::ARRAY_BUFFER, 0);
+        }
+    }
+
+    /// Create and initialize this `VertexBuffer`'s data store with the given data (`vertices`) in the given `mode`
+    ///
+    /// # Parameters
+    ///
+    /// - `vertices`: The vertex data to buffer into this `VertexBuffer`
+    /// - `mode`: The OpenGL drawing mode to use for this `VertexBuffer`, e.g. `GL_STATIC_DRAW`, `GL_DYNAMIC_DRAW`, etc.
+    pub fn buffer_data(&self, vertices: &[f32], mode: GLenum) {
+        unsafe {
+            self.gl.BufferData(
                 gl::ARRAY_BUFFER,
                 (vertices.len() * std::mem::size_of::<GLfloat>()) as GLsizeiptr,
                 &vertices[0] as *const f32 as *const c_void,
@@ -39,20 +63,11 @@ impl VertexBuffer {
     }
 }
 
-// impl Default for VertexBuffer {
-//     fn default(&self) -> Self {
-//         VertexBuffer {
-//             gl: gl::Gl {},
-//             id: 0,
-//         }
-//     }
-// }
-
-// impl Drop for VertexBuffer {
-//     fn drop(&mut self) {
-//         unsafe {
-//             self.gl
-//                 .DeleteBuffers(1 as GLsizei, &self.renderer_id as *const GLuint);
-//         }
-//     }
-// }
+impl Drop for VertexBuffer {
+    // Need to delete the buffer from OpenGL upon deallocation
+    fn drop(&mut self) {
+        unsafe {
+            self.gl.DeleteBuffers(1 as GLsizei, &self.id);
+        }
+    }
+}

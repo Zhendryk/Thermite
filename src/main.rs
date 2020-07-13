@@ -44,28 +44,21 @@ fn main() {
     let shaders = Resource::new(Path::new("assets/shaders")).unwrap();
     let shader_program = shaders::ShaderProgram::new(&shaders, "basic", &gl).unwrap();
 
-    let vao = unsafe {
-        // Vertex input (type annotate to f32 as f64 is the default)
-        let vertices: [f32; 9] = [-0.5, -0.5, 0.0, 0.5, -0.5, 0.0, 0.0, 0.5, 0.0];
+    // Create our Vertex Array Object and Vertex Buffer Object
+    let vertices: [f32; 9] = [-0.5, -0.5, 0.0, 0.5, -0.5, 0.0, 0.0, 0.5, 0.0];
+    let vbo = VertexBuffer::new(&gl);
+    vbo.bind();
+    vbo.buffer_data(&vertices, gl::STATIC_DRAW);
+    vbo.unbind();
 
-        // Create our Vertex Array Object and Vertex Buffer Object
-        let (mut vbo, mut vao) = (0, 0);
-        gl.GenBuffers(1, &mut vbo);
-        gl.BindBuffer(gl::ARRAY_BUFFER, vbo);
-        gl.BufferData(
-            gl::ARRAY_BUFFER,
-            (vertices.len() * std::mem::size_of::<GLfloat>()) as GLsizeiptr,
-            &vertices[0] as *const f32 as *const c_void,
-            gl::STATIC_DRAW,
-        );
-        gl.BindBuffer(gl::ARRAY_BUFFER, vbo);
-
-        // Vao
+    let mut vao = 0;
+    unsafe {
         gl.GenVertexArrays(1, &mut vao);
         gl.BindVertexArray(vao);
-        gl.BindBuffer(gl::ARRAY_BUFFER, vbo);
+    }
+    vbo.bind();
 
-        // Specify a vertex attribute array for the position data in our vbo we specified & enable it
+    unsafe {
         gl.EnableVertexAttribArray(0);
         gl.VertexAttribPointer(
             0,
@@ -75,18 +68,17 @@ fn main() {
             3 * std::mem::size_of::<GLfloat>() as GLsizei,
             std::ptr::null(),
         );
+    }
 
-        // We can unbind the vbo now that it is bound to the vao
-        gl.BindBuffer(gl::ARRAY_BUFFER, 0);
-        // vbo.unbind(&gl);
-
-        // Unbind vao for now to avoid it being mutated by accident (rarely happens)
+    vbo.unbind();
+    unsafe {
         gl.BindVertexArray(0);
+    }
 
-        // Uncomment this to draw wireframe polygons
-        // gl::PolygonMode(gl::FRONT_AND_BACK, gl::LINE);
-        vao
-    };
+    // Uncomment this to draw wireframe polygons
+    // unsafe {
+    //     gl.PolygonMode(gl::FRONT_AND_BACK, gl::LINE);
+    // }
 
     while !window.should_close() {
         process_events(&gl, &mut window, &events);
@@ -95,7 +87,6 @@ fn main() {
             gl.ClearColor(0.2, 0.3, 0.3, 1.0);
             gl.Clear(gl::COLOR_BUFFER_BIT);
             shader_program.use_program();
-            // gl.UseProgram(shader_program);
             gl.BindVertexArray(vao);
             gl.DrawArrays(gl::TRIANGLES, 0, 3);
         }

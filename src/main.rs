@@ -1,9 +1,11 @@
 use gl::{self, types::*};
 use glfw::{self, Action, Context, Key};
-use std::{path::Path, rc::Rc, sync::mpsc::Receiver};
+use std::{os::raw::c_void, path::Path, rc::Rc, sync::mpsc::Receiver};
 
 pub mod opengl;
-use opengl::{shaders, vertex_array::VertexArray, vertex_buffer::VertexBuffer};
+use opengl::{
+    index_buffer::IndexBuffer, shaders, vertex_array::VertexArray, vertex_buffer::VertexBuffer,
+};
 
 pub mod resources;
 use resources::Resource;
@@ -45,7 +47,10 @@ fn main() {
     let shader_program = shaders::ShaderProgram::new(&shaders, "basic", &gl).unwrap();
 
     // Create our Vertex Array Object and Vertex Buffer Object
-    let vertices: [f32; 9] = [-0.5, -0.5, 0.0, 0.5, -0.5, 0.0, 0.0, 0.5, 0.0];
+    let vertices: [f32; 12] = [
+        0.5, 0.5, 0.0, 0.5, -0.5, 0.0, -0.5, -0.5, 0.0, -0.5, 0.5, 0.0,
+    ];
+    let indices: [u32; 6] = [0, 1, 3, 1, 2, 3];
     let vbo = VertexBuffer::new(&gl);
     vbo.bind();
     vbo.buffer_data(&vertices, gl::STATIC_DRAW);
@@ -54,6 +59,10 @@ fn main() {
     let vao = VertexArray::new(&gl);
     vao.bind();
     vbo.bind();
+
+    let ibo = IndexBuffer::new(&gl);
+    ibo.bind();
+    ibo.buffer_data(&indices, gl::STATIC_DRAW);
 
     unsafe {
         gl.EnableVertexAttribArray(0);
@@ -71,9 +80,9 @@ fn main() {
     vao.unbind();
 
     // Uncomment this to draw wireframe polygons
-    // unsafe {
-    //     gl.PolygonMode(gl::FRONT_AND_BACK, gl::LINE);
-    // }
+    unsafe {
+        gl.PolygonMode(gl::FRONT_AND_BACK, gl::LINE);
+    }
 
     while !window.should_close() {
         process_events(&gl, &mut window, &events);
@@ -83,7 +92,7 @@ fn main() {
             gl.Clear(gl::COLOR_BUFFER_BIT);
             shader_program.use_program();
             vao.bind();
-            gl.DrawArrays(gl::TRIANGLES, 0, 3);
+            gl.DrawElements(gl::TRIANGLES, 6, gl::UNSIGNED_INT, 0 as *const c_void);
         }
 
         glfw.poll_events();

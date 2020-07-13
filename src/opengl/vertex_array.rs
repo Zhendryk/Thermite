@@ -1,4 +1,7 @@
-use gl::{self, types::GLuint};
+use gl::{
+    self,
+    types::{GLsizei, GLuint},
+};
 
 /// A Vertex Array Object, an OpenGL construct which stores all of the state needed to supply vertex data.
 pub struct VertexArray {
@@ -51,7 +54,7 @@ impl Drop for VertexArray {
     // Need to delete the vertex array from OpenGL upon deallocation
     fn drop(&mut self) {
         unsafe {
-            self.gl.DeleteVertexArrays(1, &self.id);
+            self.gl.DeleteVertexArrays(1 as GLsizei, &self.id);
         }
     }
 }

@@ -10,5 +10,8 @@ edition = "2018"
 glfw = "*"
 gl = { path = "lib/gl" }
 
+[build-dependencies]
+walkdir = "2.1"
+
 [features]
 gl_debug = ["gl/debug"]

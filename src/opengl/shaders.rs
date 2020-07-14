@@ -246,6 +246,34 @@ impl ShaderProgram {
         }
         Ok(ShaderProgram { gl: gl.clone(), id })
     }
+
+    pub fn set_uniform_bool(&self, name: &str, value: bool) {
+        unsafe {
+            self.gl.Uniform1i(
+                self.gl
+                    .GetUniformLocation(self.id, name.as_ptr() as *const GLchar),
+                value as GLint,
+            );
+        }
+    }
+    pub fn set_uniform_int(&self, name: &str, value: i32) {
+        unsafe {
+            self.gl.Uniform1i(
+                self.gl
+                    .GetUniformLocation(self.id, name.as_ptr() as *const GLchar),
+                value as GLint,
+            );
+        }
+    }
+    pub fn set_uniform_float(&self, name: &str, value: f32) {
+        unsafe {
+            self.gl.Uniform1f(
+                self.gl
+                    .GetUniformLocation(self.id, name.as_ptr() as *const GLchar),
+                value as GLfloat,
+            );
+        }
+    }
 }
 
 impl Drop for ShaderProgram {

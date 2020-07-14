@@ -1,3 +1,4 @@
+use crate::opengl::buffer_layout;
 use gl::{
     self,
     types::{GLenum, GLfloat, GLsizei, GLsizeiptr, GLuint},
@@ -8,6 +9,7 @@ use std::os::raw::c_void;
 pub struct VertexBuffer {
     gl: gl::Gl, // This is a reference counted pointer (C++ std::shared_pointer equivalent)
     id: GLuint,
+    layout: buffer_layout::BufferLayout,
 }
 
 impl VertexBuffer {
@@ -16,11 +18,12 @@ impl VertexBuffer {
     /// # Parameters
     ///
     /// - `gl`: Reference counted pointer to the current OpenGL context
+    /// - `layout`: The `BufferLayout` detailing the layout of the data (stride, offsets, etc.)
     ///
     /// # Returns
     ///
     /// A newly initialized `VertexBuffer` (unbound)
-    pub fn new(gl: &gl::Gl) -> Self {
+    pub fn new(gl: &gl::Gl, layout: buffer_layout::BufferLayout) -> Self {
         let mut id: GLuint = 0;
         unsafe {
             gl.GenBuffers(1, &mut id);
@@ -28,12 +31,18 @@ impl VertexBuffer {
         VertexBuffer {
             gl: gl.clone(),
             id: id,
+            layout: layout,
         }
     }
 
     /// Returns the OpenGL GLuint id of this `VertexBuffer`
-    pub fn id(&self) -> GLuint {
-        self.id
+    pub fn id(&self) -> &GLuint {
+        &self.id
+    }
+
+    /// Returns the `BufferLayout` of the data within this `VertexBuffer`
+    pub fn layout(&self) -> &buffer_layout::BufferLayout {
+        &self.layout
     }
 
     /// Bind this `VertexBuffer` to the OpenGL `GL_ARRAY_BUFFER` target

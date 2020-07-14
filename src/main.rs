@@ -4,14 +4,18 @@ use std::{os::raw::c_void, path::Path, rc::Rc, sync::mpsc::Receiver};
 
 pub mod opengl;
 use opengl::{
-    index_buffer::IndexBuffer, shaders, vertex_array::VertexArray, vertex_buffer::VertexBuffer,
+    buffer_layout::{BufferComponent, BufferComponentType, BufferLayout},
+    index_buffer::IndexBuffer,
+    shaders,
+    vertex_array::VertexArray,
+    vertex_buffer::VertexBuffer,
 };
 
 pub mod resources;
 use resources::Resource;
 
-const WIDTH: u32 = 800;
-const HEIGHT: u32 = 600;
+const WIDTH: u32 = 1920;
+const HEIGHT: u32 = 1080;
 
 fn main() {
     // Initialize GLFW
@@ -44,45 +48,49 @@ fn main() {
 
     // Grab our shader resource and create a shader program with it
     let shaders = Resource::new(Path::new("assets/shaders")).unwrap();
-    let shader_program = shaders::ShaderProgram::new(&shaders, "basic", &gl).unwrap();
+    let shader_program = shaders::ShaderProgram::new(&shaders, "colored", &gl).unwrap();
 
     // Create our Vertex Array Object and Vertex Buffer Object
-    let vertices: [f32; 12] = [
-        0.5, 0.5, 0.0, 0.5, -0.5, 0.0, -0.5, -0.5, 0.0, -0.5, 0.5, 0.0,
+    // let vertices: [f32; 12] = [
+    //     0.5, 0.5, 0.0, // Bottom right
+    //     0.5, -0.5, 0.0, // Top right
+    //     -0.5, -0.5, 0.0, // Top left
+    //     -0.5, 0.5, 0.0, // Bottom left
+    // ];
+    // let indices: [u32; 6] = [0, 1, 3, 1, 2, 3];
+    let vertices: [f32; 18] = [
+        // positions   //colors
+        0.5, -0.5, 0.0, 1.0, 0.0, 0.0, // bottom right
+        -0.5, -0.5, 0.0, 0.0, 1.0, 0.0, // bottom left
+        0.0, 0.5, 0.0, 0.0, 0.0, 1.0, // top
     ];
-    let indices: [u32; 6] = [0, 1, 3, 1, 2, 3];
-    let vbo = VertexBuffer::new(&gl);
+    let positions = BufferComponent::new(
+        String::from("positions"),
+        BufferComponentType::Float3,
+        false,
+    );
+    let colors = BufferComponent::new(String::from("colors"), BufferComponentType::Float3, true);
+    let layout = BufferLayout::new(&mut [positions, colors]);
+
+    let vbo = VertexBuffer::new(&gl, layout);
     vbo.bind();
     vbo.buffer_data(&vertices, gl::STATIC_DRAW);
     vbo.unbind();
+    // let ibo = IndexBuffer::new(&gl);
+    // ibo.bind();
+    // ibo.buffer_data(&indices, gl::STATIC_DRAW);
+    // ibo.unbind();
 
-    let vao = VertexArray::new(&gl);
-    vao.bind();
-    vbo.bind();
+    let mut vao = VertexArray::new(&gl);
+    vao.add_vertex_buffer(vbo);
+    // vao.set_index_buffer(ibo);
 
-    let ibo = IndexBuffer::new(&gl);
-    ibo.bind();
-    ibo.buffer_data(&indices, gl::STATIC_DRAW);
-
-    unsafe {
-        gl.EnableVertexAttribArray(0);
-        gl.VertexAttribPointer(
-            0,
-            3,
-            gl::FLOAT,
-            gl::FALSE,
-            3 * std::mem::size_of::<GLfloat>() as GLsizei,
-            std::ptr::null(),
-        );
-    }
-
-    vbo.unbind();
     vao.unbind();
 
     // Uncomment this to draw wireframe polygons
-    unsafe {
-        gl.PolygonMode(gl::FRONT_AND_BACK, gl::LINE);
-    }
+    // unsafe {
+    //     gl.PolygonMode(gl::FRONT_AND_BACK, gl::LINE);
+    // }
 
     while !window.should_close() {
         process_events(&gl, &mut window, &events);
@@ -92,7 +100,8 @@ fn main() {
             gl.Clear(gl::COLOR_BUFFER_BIT);
             shader_program.use_program();
             vao.bind();
-            gl.DrawElements(gl::TRIANGLES, 6, gl::UNSIGNED_INT, 0 as *const c_void);
+            gl.DrawArrays(gl::TRIANGLES, 0, 3);
+            // gl.DrawElements(gl::TRIANGLES, 6, gl::UNSIGNED_INT, 0 as *const c_void);
         }
 
         glfw.poll_events();

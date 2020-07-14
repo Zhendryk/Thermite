@@ -37,13 +37,13 @@ pub struct Shader {
 
 impl Shader {
     /// Creates a new `Shader` using the given `filename` inside the given `Resource`, if it exists
-    /// # Parameters
+    /// ### Parameters
     ///
     /// - `res`: A `Resource` pointing to the directory where the `Shader` file is stored on disk
     /// - `filename`: The file name of this shader
     /// - `gl`: Reference counted pointer to the current OpenGL context
     ///
-    /// # Returns
+    /// ### Returns
     ///
     /// A `Result` which is:
     ///
@@ -78,20 +78,20 @@ impl Shader {
         })
     }
 
-    /// Returns the `GLuint` id of this `Shader`
-    pub fn id(&self) -> GLuint {
-        self.id
+    /// Returns an immutable reference to the `GLuint` id of this `Shader`
+    pub fn id(&self) -> &GLuint {
+        &self.id
     }
 
     /// Create a `Shader` of the given `kind` using the given `source`
     ///
-    /// # Parameters
+    /// ### Parameters
     ///
     /// - `source`: The source code of the shader
     /// - `kind`: The kind of `Shader` to create, e.g. Vertex, Fragment, etc.
     /// - `gl`: Reference counted pointer to the current OpenGL context
     ///
-    /// # Returns
+    /// ### Returns
     ///
     /// A `Result` which is:
     ///
@@ -150,13 +150,13 @@ pub struct ShaderProgram {
 
 impl ShaderProgram {
     /// Creates a new OpenGL `ShaderProgram` using all of the shaders in the given `Resource` which share the `program_name`
-    /// # Parameters
+    /// ### Parameters
     ///
     /// - `res`: A `Resource` pointing to the directory where the `Shader`s for this `ShaderProgram` are stored on disk
     /// - `program_name`: The name of this program, used to identify all of the `Shader`s used within it
     /// - `gl`: Reference counted pointer to the current OpenGL context
     ///
-    /// # Returns
+    /// ### Returns
     ///
     /// A `Result` which is:
     ///
@@ -184,9 +184,9 @@ impl ShaderProgram {
         })
     }
 
-    /// Returns the `GLuint` id of this `ShaderProgram`
-    pub fn id(&self) -> GLuint {
-        self.id
+    /// Returns an immutable reference to the `GLuint` id of this `ShaderProgram`
+    pub fn id(&self) -> &GLuint {
+        &self.id
     }
 
     /// Installs this `ShaderProgram` as part of the current OpenGL rendering state
@@ -195,13 +195,47 @@ impl ShaderProgram {
             self.gl.UseProgram(self.id);
         }
     }
+
+    /// Sets the value of a uniform boolean variable in the shader program stack, if it exists
+    pub fn set_uniform_bool(&self, name: &str, value: bool) {
+        unsafe {
+            self.gl.Uniform1i(
+                self.gl
+                    .GetUniformLocation(self.id, name.as_ptr() as *const GLchar),
+                value as GLint,
+            );
+        }
+    }
+
+    /// Sets the value of a uniform int variable in the shader program stack, if it exists
+    pub fn set_uniform_int(&self, name: &str, value: i32) {
+        unsafe {
+            self.gl.Uniform1i(
+                self.gl
+                    .GetUniformLocation(self.id, name.as_ptr() as *const GLchar),
+                value as GLint,
+            );
+        }
+    }
+
+    /// Sets the value of a uniform float variable in the shader program stack, if it exists
+    pub fn set_uniform_float(&self, name: &str, value: f32) {
+        unsafe {
+            self.gl.Uniform1f(
+                self.gl
+                    .GetUniformLocation(self.id, name.as_ptr() as *const GLchar),
+                value as GLfloat,
+            );
+        }
+    }
+
     /// Create a shader program with the given list of shaders
-    /// # Parameters
+    /// ### Parameters
     ///
     /// - `using_shaders`: A list of the `Shader` structs to link together into a `ShaderProgram`
     /// - `gl`: Reference counted pointer to the current OpenGL context
     ///
-    /// # Returns
+    /// ### Returns
     ///
     /// A `Result` which is:
     ///
@@ -213,7 +247,7 @@ impl ShaderProgram {
         // Attach all of our shaders to the program
         for shader in using_shaders {
             unsafe {
-                gl.AttachShader(id, shader.id());
+                gl.AttachShader(id, *shader.id());
             }
         }
         // Link the program
@@ -241,38 +275,10 @@ impl ShaderProgram {
             unsafe {
                 // gl.DeleteShader will not delete if it is attached to the program
                 // Since we've already linked the program, we can detach them
-                gl.DetachShader(id, shader.id());
+                gl.DetachShader(id, *shader.id());
             }
         }
         Ok(ShaderProgram { gl: gl.clone(), id })
-    }
-
-    pub fn set_uniform_bool(&self, name: &str, value: bool) {
-        unsafe {
-            self.gl.Uniform1i(
-                self.gl
-                    .GetUniformLocation(self.id, name.as_ptr() as *const GLchar),
-                value as GLint,
-            );
-        }
-    }
-    pub fn set_uniform_int(&self, name: &str, value: i32) {
-        unsafe {
-            self.gl.Uniform1i(
-                self.gl
-                    .GetUniformLocation(self.id, name.as_ptr() as *const GLchar),
-                value as GLint,
-            );
-        }
-    }
-    pub fn set_uniform_float(&self, name: &str, value: f32) {
-        unsafe {
-            self.gl.Uniform1f(
-                self.gl
-                    .GetUniformLocation(self.id, name.as_ptr() as *const GLchar),
-                value as GLfloat,
-            );
-        }
     }
 }
 

@@ -13,11 +13,11 @@ pub struct IndexBuffer {
 impl IndexBuffer {
     /// Creates a new Index Buffer Object, and OpenGL construct which allows for indexed drawing on render calls which have overlapping vertex data
     ///
-    /// # Parameters
+    /// ### Parameters
     ///
     /// - `gl`: Reference counted pointer to the current OpenGL context
     ///
-    /// # Returns
+    /// ### Returns
     ///
     /// A newly initialized `IndexBuffer` (unbound)
     pub fn new(gl: &gl::Gl) -> Self {
@@ -31,9 +31,9 @@ impl IndexBuffer {
         }
     }
 
-    /// Returns the OpenGL GLuint id of this `IndexBuffer`
-    pub fn id(&self) -> GLuint {
-        self.id
+    /// Returns an immutable reference to the OpenGL GLuint id of this `IndexBuffer`
+    pub fn id(&self) -> &GLuint {
+        &self.id
     }
 
     /// Bind this `IndexBuffer` object to the current OpenGL context
@@ -53,7 +53,7 @@ impl IndexBuffer {
 
     /// Create and initialize this `IndexBuffer`'s data store with the given data (`indices`) in the given `mode`
     ///
-    /// # Parameters
+    /// ### Parameters
     ///
     /// - `indices`: The vertex index data to buffer into this `IndexBuffer`
     /// - `mode`: The OpenGL drawing mode to use for this `IndexBuffer`, e.g. `GL_STATIC_DRAW`, `GL_DYNAMIC_DRAW`, etc.

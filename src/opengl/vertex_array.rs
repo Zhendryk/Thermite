@@ -1,4 +1,4 @@
-use crate::opengl::{buffer_layout, index_buffer, vertex_buffer};
+use crate::opengl::{buffer_layout, index_buffer::IndexBuffer, vertex_buffer::VertexBuffer};
 use gl::{
     self,
     types::{GLboolean, GLint, GLsizei, GLuint},
@@ -9,19 +9,20 @@ use std::os::raw::c_void;
 pub struct VertexArray {
     gl: gl::Gl, // This is a reference counted pointer (C++ std::shared_pointer equivalent)
     id: GLuint,
-    vertex_buffers: Vec<vertex_buffer::VertexBuffer>,
+    // TODO: Should this be a Vec of pointers?
+    vertex_buffers: Vec<VertexBuffer>,
     vb_index: u32,
-    index_buffer: Option<index_buffer::IndexBuffer>,
+    index_buffer: Option<IndexBuffer>,
 }
 
 impl VertexArray {
     /// Creates a new Vertex Array Object, an OpenGL construct which stores all of the state needed to supply vertex data.
     ///
-    /// # Parameters
+    /// ### Parameters
     ///
     /// - `gl`: Reference counted pointer to the current OpenGL context
     ///
-    /// # Returns
+    /// ### Returns
     ///
     /// A newly initialized `VertexArray` (unbound)
     pub fn new(gl: &gl::Gl) -> Self {
@@ -38,7 +39,7 @@ impl VertexArray {
         }
     }
 
-    /// Returns the OpenGL GLuint id of this `VertexArray`
+    /// Returns an immutable reference to the OpenGL GLuint id of this `VertexArray`
     pub fn id(&self) -> &GLuint {
         &self.id
     }
@@ -57,7 +58,12 @@ impl VertexArray {
         }
     }
 
-    pub fn add_vertex_buffer(&mut self, vbo: vertex_buffer::VertexBuffer) {
+    /// Adds/binds the given `VertexBuffer` to this `VertexArray`
+    ///
+    /// ### Parameters
+    ///
+    /// - `vbo`: The `VertexBuffer` to bind to this `VertexArray`
+    pub fn add_vertex_buffer(&mut self, vbo: VertexBuffer) {
         self.bind();
         vbo.bind();
         let layout = vbo.layout();
@@ -83,7 +89,12 @@ impl VertexArray {
         self.vertex_buffers.push(vbo);
     }
 
-    pub fn set_index_buffer(&mut self, ibo: index_buffer::IndexBuffer) {
+    /// Bind the given `IndexBuffer` to this `VertexArray`
+    ///
+    /// ### Parameters
+    ///
+    /// - `ibo`: The `IndexBuffer` to bind to this `VertexArray`
+    pub fn set_index_buffer(&mut self, ibo: IndexBuffer) {
         self.bind();
         ibo.bind();
         self.index_buffer = Option::from(ibo);

@@ -15,12 +15,12 @@ pub struct VertexBuffer {
 impl VertexBuffer {
     /// Create a new Vertex Buffer Object (vbo)
     ///
-    /// # Parameters
+    /// ### Parameters
     ///
     /// - `gl`: Reference counted pointer to the current OpenGL context
     /// - `layout`: The `BufferLayout` detailing the layout of the data (stride, offsets, etc.)
     ///
-    /// # Returns
+    /// ### Returns
     ///
     /// A newly initialized `VertexBuffer` (unbound)
     pub fn new(gl: &gl::Gl, layout: buffer_layout::BufferLayout) -> Self {
@@ -35,12 +35,12 @@ impl VertexBuffer {
         }
     }
 
-    /// Returns the OpenGL GLuint id of this `VertexBuffer`
+    /// Returns an immutable reference to the OpenGL GLuint id of this `VertexBuffer`
     pub fn id(&self) -> &GLuint {
         &self.id
     }
 
-    /// Returns the `BufferLayout` of the data within this `VertexBuffer`
+    /// Returns an immutable reference to the `BufferLayout` of the data within this `VertexBuffer`
     pub fn layout(&self) -> &buffer_layout::BufferLayout {
         &self.layout
     }
@@ -61,7 +61,7 @@ impl VertexBuffer {
 
     /// Create and initialize this `VertexBuffer`'s data store with the given data (`vertices`) in the given `mode`
     ///
-    /// # Parameters
+    /// ### Parameters
     ///
     /// - `vertices`: The vertex data to buffer into this `VertexBuffer`
     /// - `mode`: The OpenGL drawing mode to use for this `VertexBuffer`, e.g. `GL_STATIC_DRAW`, `GL_DYNAMIC_DRAW`, etc.

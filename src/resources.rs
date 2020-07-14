@@ -28,11 +28,11 @@ pub struct Resource {
 impl Resource {
     /// Create a new `Resource` to the given folder
     ///
-    /// # Parameters
+    /// ### Parameters
     ///
     /// - `rel_path`: The relative path from the executable to the resource directory
     ///
-    /// # Returns
+    /// ### Returns
     ///
     /// A `Result` which is:
     ///
@@ -53,11 +53,11 @@ impl Resource {
     }
     /// Load the given resource file inside this `Resource`'s root path and return the data as a `CString`
     ///
-    /// # Parameters
+    /// ### Parameters
     ///
     /// - `resource_name`: The filename of the resource to load into memory
     ///
-    /// # Returns
+    /// ### Returns
     ///
     /// A `Result` which is:
     ///

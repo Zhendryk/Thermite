@@ -1,6 +1,6 @@
-use gl::{self, types::*};
-use glfw::{self, Action, Context, Key};
-use std::{os::raw::c_void, path::Path, rc::Rc, sync::mpsc::Receiver};
+use gl;
+use glfw::{self, WindowHint, WindowMode};
+use std::path::Path;
 
 pub mod opengl;
 use opengl::{
@@ -9,6 +9,7 @@ use opengl::{
     shaders,
     vertex_array::VertexArray,
     vertex_buffer::VertexBuffer,
+    window::GLFWWindow,
 };
 
 pub mod resources;
@@ -18,33 +19,25 @@ const WIDTH: u32 = 1920;
 const HEIGHT: u32 = 1080;
 
 fn main() {
-    // Initialize GLFW
-    let mut glfw = glfw::init(glfw::FAIL_ON_ERRORS).unwrap();
-    glfw.window_hint(glfw::WindowHint::ContextVersion(3, 3));
-    glfw.window_hint(glfw::WindowHint::OpenGlProfile(
-        glfw::OpenGlProfileHint::Core,
-    ));
-    glfw.window_hint(glfw::WindowHint::OpenGlForwardCompat(true));
+    let hints = vec![
+        WindowHint::ContextVersion(3, 3),
+        WindowHint::OpenGlProfile(glfw::OpenGlProfileHint::Core),
+        WindowHint::OpenGlForwardCompat(true),
+    ];
+    let mut window = GLFWWindow::new(
+        WIDTH,
+        HEIGHT,
+        "Thermite Engine v0.1.0",
+        WindowMode::Windowed,
+        glfw::FAIL_ON_ERRORS,
+        Option::from(hints),
+    )
+    .expect("Failed to create GLFW window");
 
-    // Create a windowed mode window and its OpenGL context
-    let (mut window, events) = glfw
-        .create_window(
-            WIDTH,
-            HEIGHT,
-            "Thermite Engine v0.1.0",
-            glfw::WindowMode::Windowed,
-        )
-        .expect("Failed to create GLFW window.");
-
-    // Make the window's context current
-    window.make_current();
+    window.make_context_current();
     window.set_key_polling(true);
     window.set_framebuffer_size_polling(true);
-
-    // load all OpenGL function pointers
-    let gl = Rc::new(gl::Gl::load_with(|symbol| {
-        window.get_proc_address(symbol) as *const std::os::raw::c_void
-    }));
+    let gl = window.load_opengl_fn_ptrs();
 
     // Grab our shader resource and create a shader program with it
     let shaders = Resource::new(Path::new("assets/shaders")).unwrap();
@@ -93,7 +86,7 @@ fn main() {
     // }
 
     while !window.should_close() {
-        process_events(&gl, &mut window, &events);
+        window.process_events(&gl);
 
         unsafe {
             gl.ClearColor(0.2, 0.3, 0.3, 1.0);
@@ -104,25 +97,7 @@ fn main() {
             // gl.DrawElements(gl::TRIANGLES, 6, gl::UNSIGNED_INT, 0 as *const c_void);
         }
 
-        glfw.poll_events();
+        window.poll_events();
         window.swap_buffers();
-    }
-}
-
-fn process_events(
-    gl: &gl::Gl,
-    window: &mut glfw::Window,
-    events: &Receiver<(f64, glfw::WindowEvent)>,
-) {
-    for (_, event) in glfw::flush_messages(events) {
-        match event {
-            glfw::WindowEvent::FramebufferSize(width, height) => unsafe {
-                gl.Viewport(0, 0, width, height)
-            },
-            glfw::WindowEvent::Key(Key::Escape, _, Action::Press, _) => {
-                window.set_should_close(true)
-            }
-            _ => {}
-        }
     }
 }

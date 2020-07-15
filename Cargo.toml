@@ -9,6 +9,7 @@ edition = "2018"
 [dependencies]
 glfw = "*"
 gl = { path = "lib/gl" }
+image = "*"
 
 [build-dependencies]
 walkdir = "2.1"

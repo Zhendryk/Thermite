@@ -77,7 +77,7 @@ impl BufferComponent {
     /// ### Returns
     ///
     /// A new `BufferComponent`, ready for insertion into a `BufferLayout`
-    pub fn new(name: String, kind: BufferComponentType, normalized: bool) -> Self {
+    pub fn new(name: String, kind: BufferComponentType, normalized: bool) -> BufferComponent {
         let size = size_for_component_type(&kind);
         let count = count_for_component_type(&kind);
         BufferComponent {
@@ -137,7 +137,7 @@ impl BufferLayout {
     /// ### Returns
     ///
     /// A new `BufferLayout`, ready for insertion into a `VertexBuffer`
-    pub fn new(components: &mut [BufferComponent]) -> Self {
+    pub fn new(components: &mut [BufferComponent]) -> BufferLayout {
         let mut stride = 0;
         let mut offset = 0;
         for component in components.iter_mut() {

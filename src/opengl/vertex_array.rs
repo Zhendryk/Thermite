@@ -25,7 +25,7 @@ impl VertexArray {
     /// ### Returns
     ///
     /// A newly initialized `VertexArray` (unbound)
-    pub fn new(gl: &gl::Gl) -> Self {
+    pub fn new(gl: &gl::Gl) -> VertexArray {
         let mut id: GLuint = 0;
         unsafe {
             gl.GenVertexArrays(1, &mut id);

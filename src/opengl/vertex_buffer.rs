@@ -1,4 +1,4 @@
-use crate::opengl::buffer_layout;
+use crate::opengl::buffer_layout::BufferLayout;
 use gl::{
     self,
     types::{GLenum, GLfloat, GLsizei, GLsizeiptr, GLuint},
@@ -9,7 +9,7 @@ use std::os::raw::c_void;
 pub struct VertexBuffer {
     gl: gl::Gl, // This is a reference counted pointer (C++ std::shared_pointer equivalent)
     id: GLuint,
-    layout: buffer_layout::BufferLayout,
+    layout: BufferLayout,
 }
 
 impl VertexBuffer {
@@ -23,7 +23,7 @@ impl VertexBuffer {
     /// ### Returns
     ///
     /// A newly initialized `VertexBuffer` (unbound)
-    pub fn new(gl: &gl::Gl, layout: buffer_layout::BufferLayout) -> Self {
+    pub fn new(gl: &gl::Gl, layout: BufferLayout) -> VertexBuffer {
         let mut id: GLuint = 0;
         unsafe {
             gl.GenBuffers(1, &mut id);
@@ -41,7 +41,7 @@ impl VertexBuffer {
     }
 
     /// Returns an immutable reference to the `BufferLayout` of the data within this `VertexBuffer`
-    pub fn layout(&self) -> &buffer_layout::BufferLayout {
+    pub fn layout(&self) -> &BufferLayout {
         &self.layout
     }
 

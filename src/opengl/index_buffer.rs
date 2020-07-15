@@ -20,7 +20,7 @@ impl IndexBuffer {
     /// ### Returns
     ///
     /// A newly initialized `IndexBuffer` (unbound)
-    pub fn new(gl: &gl::Gl) -> Self {
+    pub fn new(gl: &gl::Gl) -> IndexBuffer {
         let mut id: GLuint = 0;
         unsafe {
             gl.GenBuffers(1, &mut id);

@@ -46,16 +46,12 @@ impl VertexArray {
 
     /// Bind this `VertexArray` object to the current OpenGL context
     pub fn bind(&self) {
-        unsafe {
-            self.gl.BindVertexArray(self.id);
-        }
+        unsafe { self.gl.BindVertexArray(self.id) }
     }
 
     /// Unbind this `VertexArray` object from the current OpenGL context
     pub fn unbind(&self) {
-        unsafe {
-            self.gl.BindVertexArray(0);
-        }
+        unsafe { self.gl.BindVertexArray(0) }
     }
 
     /// Adds/binds the given `VertexBuffer` to this `VertexArray`
@@ -100,7 +96,7 @@ impl VertexArray {
                 _ => println!("Unsupported BufferComponentType!"),
             }
         }
-        self.vertex_buffers.push(vbo);
+        self.vertex_buffers.push(vbo)
     }
 
     /// Bind the given `IndexBuffer` to this `VertexArray`
@@ -111,15 +107,13 @@ impl VertexArray {
     pub fn set_index_buffer(&mut self, ibo: IndexBuffer) {
         self.bind();
         ibo.bind();
-        self.index_buffer = Option::from(ibo);
+        self.index_buffer = Option::from(ibo)
     }
 }
 
 impl Drop for VertexArray {
     // Need to delete the vertex array from OpenGL upon deallocation
     fn drop(&mut self) {
-        unsafe {
-            self.gl.DeleteVertexArrays(1 as GLsizei, &self.id);
-        }
+        unsafe { self.gl.DeleteVertexArrays(1 as GLsizei, &self.id) }
     }
 }

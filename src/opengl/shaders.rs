@@ -20,7 +20,7 @@ impl ShaderUniformType for bool {
             gl.Uniform1i(
                 gl.GetUniformLocation(*program_id, name.as_ptr()),
                 *self as GLint,
-            );
+            )
         }
     }
 }
@@ -32,7 +32,7 @@ impl ShaderUniformType for u32 {
             gl.Uniform1i(
                 gl.GetUniformLocation(*program_id, name.as_ptr()),
                 *self as GLint,
-            );
+            )
         }
     }
 }
@@ -44,7 +44,7 @@ impl ShaderUniformType for i32 {
             gl.Uniform1i(
                 gl.GetUniformLocation(*program_id, name.as_ptr()),
                 *self as GLint,
-            );
+            )
         }
     }
 }
@@ -56,7 +56,7 @@ impl ShaderUniformType for f32 {
             gl.Uniform1f(
                 gl.GetUniformLocation(*program_id, name.as_ptr()),
                 *self as GLfloat,
-            );
+            )
         }
     }
 }
@@ -188,9 +188,7 @@ impl Shader {
 impl Drop for Shader {
     // Need to delete the shader from OpenGL on deallocation
     fn drop(&mut self) {
-        unsafe {
-            self.gl.DeleteShader(self.id);
-        }
+        unsafe { self.gl.DeleteShader(self.id) }
     }
 }
 
@@ -243,14 +241,13 @@ impl ShaderProgram {
 
     /// Installs this `ShaderProgram` as part of the current OpenGL rendering state
     pub fn use_program(&self) {
-        unsafe {
-            self.gl.UseProgram(self.id);
-        }
+        unsafe { self.gl.UseProgram(self.id) }
     }
 
     /// Set the value of a uniform variable in the current shader program stack, if it exists
     pub fn set_uniform<T: ShaderUniformType>(&self, name: &str, value: T) {
-        let name_cstr = CString::new(name).unwrap_or_default(); // NOTE: Rust strings are not null terminated. Need to convert to CString here or glGetUniformLocation will not work!
+        // NOTE: Rust strings are not null terminated. Need to convert to CString here or glGetUniformLocation will not work!
+        let name_cstr = CString::new(name).unwrap_or_default();
         value.set_uniform(&self.id, name_cstr.as_c_str(), &self.gl);
     }
 
@@ -310,9 +307,7 @@ impl ShaderProgram {
 impl Drop for ShaderProgram {
     // Need to delete the ShaderProgram from OpenGL on deallocation
     fn drop(&mut self) {
-        unsafe {
-            self.gl.DeleteProgram(self.id);
-        }
+        unsafe { self.gl.DeleteProgram(self.id) }
     }
 }
 

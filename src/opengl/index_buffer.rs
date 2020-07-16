@@ -38,17 +38,13 @@ impl IndexBuffer {
 
     /// Bind this `IndexBuffer` object to the current OpenGL context
     pub fn bind(&self) {
-        unsafe {
-            // TODO: Look into this vs ARRAY_BUFFER, as the former requires a VAO
-            self.gl.BindBuffer(gl::ELEMENT_ARRAY_BUFFER, self.id);
-        }
+        // TODO: Look into this vs ARRAY_BUFFER, as the former requires a VAO
+        unsafe { self.gl.BindBuffer(gl::ELEMENT_ARRAY_BUFFER, self.id) }
     }
 
     /// Unbind this `IndexBuffer` object from the current OpenGL context
     pub fn unbind(&self) {
-        unsafe {
-            self.gl.BindBuffer(gl::ELEMENT_ARRAY_BUFFER, 0);
-        }
+        unsafe { self.gl.BindBuffer(gl::ELEMENT_ARRAY_BUFFER, 0) }
     }
 
     /// Create and initialize this `IndexBuffer`'s data store with the given data (`indices`) in the given `mode`
@@ -64,7 +60,7 @@ impl IndexBuffer {
                 (indices.len() * std::mem::size_of::<GLuint>()) as GLsizeiptr,
                 &indices[0] as *const u32 as *const c_void,
                 mode,
-            );
+            )
         }
     }
 }
@@ -72,8 +68,6 @@ impl IndexBuffer {
 impl Drop for IndexBuffer {
     // Need to delete the buffer from OpenGL upon deallocation
     fn drop(&mut self) {
-        unsafe {
-            self.gl.DeleteBuffers(1 as GLsizei, &self.id);
-        }
+        unsafe { self.gl.DeleteBuffers(1 as GLsizei, &self.id) }
     }
 }

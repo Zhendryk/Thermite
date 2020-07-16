@@ -152,7 +152,7 @@ impl Texture {
                     self.format,
                     gl::UNSIGNED_BYTE,
                     self.img.to_bytes().as_ptr() as *const c_void,
-                )
+                );
             },
             gl::TEXTURE_3D => unsafe {
                 let depth = self.depth.unwrap_or(0) as GLsizei;
@@ -167,7 +167,7 @@ impl Texture {
                     self.format,
                     gl::UNSIGNED_BYTE,
                     self.img.to_bytes().as_ptr() as *const c_void,
-                )
+                );
             },
             _ => println!("Unsupported texture type!"),
         }

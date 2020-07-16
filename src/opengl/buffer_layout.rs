@@ -72,7 +72,7 @@ impl BufferComponent {
     ///
     /// - `name`: The textual name of this `BufferComponent`
     /// - `kind`: The type/amount of data this `BufferComponent` contains, represented as a `BufferComponentType`
-    /// - `normalized`: Whether or not this data is normalized to a 0.0 - 1.0 numerical range.
+    /// - `normalized`: Specifies whether fixed-point data values should be normalized (true) or converted directly as fixed-point values (false) when they are accessed
     ///
     /// ### Returns
     ///

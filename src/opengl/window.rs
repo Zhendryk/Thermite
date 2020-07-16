@@ -72,27 +72,27 @@ impl GLFWWindow {
 
     /// Wrapper for `glfwMakeContextCurrent`
     pub fn make_context_current(&mut self) {
-        self.handle.make_current();
+        self.handle.make_current()
     }
 
     /// Wrapper for `glfwSetKeyCallback`
     pub fn set_key_polling(&mut self, should_poll: bool) {
-        self.handle.set_key_polling(should_poll);
+        self.handle.set_key_polling(should_poll)
     }
 
     /// Wrapper for `glfwSetFramebufferSizeCallback`
     pub fn set_framebuffer_size_polling(&mut self, should_poll: bool) {
-        self.handle.set_framebuffer_size_polling(should_poll);
+        self.handle.set_framebuffer_size_polling(should_poll)
     }
 
     /// Swaps the front and back buffers of the window. If the swap interval is greater than zero, the GPU driver waits the specified number of screen updates before swapping the buffers.
     pub fn swap_buffers(&mut self) {
-        self.handle.swap_buffers();
+        self.handle.swap_buffers()
     }
 
     /// Immediate process received events
     pub fn poll_events(&mut self) {
-        self.glfw.poll_events();
+        self.glfw.poll_events()
     }
 
     /// Wrapper for `glfwWindowShouldClose`

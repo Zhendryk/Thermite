@@ -47,16 +47,12 @@ impl VertexBuffer {
 
     /// Bind this `VertexBuffer` to the OpenGL `GL_ARRAY_BUFFER` target
     pub fn bind(&self) {
-        unsafe {
-            self.gl.BindBuffer(gl::ARRAY_BUFFER, self.id);
-        }
+        unsafe { self.gl.BindBuffer(gl::ARRAY_BUFFER, self.id) }
     }
 
     /// Unbind this `VertexBuffer` from the OpenGL `GL_ARRAY_BUFFER` target
     pub fn unbind(&self) {
-        unsafe {
-            self.gl.BindBuffer(gl::ARRAY_BUFFER, 0);
-        }
+        unsafe { self.gl.BindBuffer(gl::ARRAY_BUFFER, 0) }
     }
 
     /// Create and initialize this `VertexBuffer`'s data store with the given data (`vertices`) in the given `mode`
@@ -72,7 +68,7 @@ impl VertexBuffer {
                 (vertices.len() * std::mem::size_of::<GLfloat>()) as GLsizeiptr,
                 &vertices[0] as *const f32 as *const c_void,
                 mode,
-            );
+            )
         }
     }
 }
@@ -80,8 +76,6 @@ impl VertexBuffer {
 impl Drop for VertexBuffer {
     // Need to delete the buffer from OpenGL upon deallocation
     fn drop(&mut self) {
-        unsafe {
-            self.gl.DeleteBuffers(1 as GLsizei, &self.id);
-        }
+        unsafe { self.gl.DeleteBuffers(1 as GLsizei, &self.id) }
     }
 }

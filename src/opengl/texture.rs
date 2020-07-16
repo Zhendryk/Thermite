@@ -4,7 +4,7 @@ use gl::{
 };
 extern crate image;
 use crate::resources;
-use image::{GenericImageView, ImageError};
+use image::{DynamicImage, GenericImageView, ImageError};
 use std::os::raw::c_void;
 
 /// Allows for setting OpenGL texture parameter values, wraps `glTexParameter<type>`
@@ -14,41 +14,31 @@ pub trait TextureParameterType {
 
 impl TextureParameterType for u32 {
     fn set_texture_parameter(&self, texture_type: GLenum, param_name: GLenum, gl: &gl::Gl) {
-        unsafe {
-            gl.TexParameteri(texture_type, param_name, *self as GLint);
-        }
+        unsafe { gl.TexParameteri(texture_type, param_name, *self as GLint) }
     }
 }
 
 impl TextureParameterType for i32 {
     fn set_texture_parameter(&self, texture_type: GLenum, param_name: GLenum, gl: &gl::Gl) {
-        unsafe {
-            gl.TexParameteri(texture_type, param_name, *self as GLint);
-        }
+        unsafe { gl.TexParameteri(texture_type, param_name, *self as GLint) }
     }
 }
 
 impl TextureParameterType for f32 {
     fn set_texture_parameter(&self, texture_type: GLenum, param_name: GLenum, gl: &gl::Gl) {
-        unsafe {
-            gl.TexParameterf(texture_type, param_name, *self as GLfloat);
-        }
+        unsafe { gl.TexParameterf(texture_type, param_name, *self as GLfloat) }
     }
 }
 
 impl TextureParameterType for [i32] {
     fn set_texture_parameter(&self, texture_type: GLenum, param_name: GLenum, gl: &gl::Gl) {
-        unsafe {
-            gl.TexParameteriv(texture_type, param_name, &self[0]);
-        }
+        unsafe { gl.TexParameteriv(texture_type, param_name, &self[0]) }
     }
 }
 
 impl TextureParameterType for [f32] {
     fn set_texture_parameter(&self, texture_type: GLenum, param_name: GLenum, gl: &gl::Gl) {
-        unsafe {
-            gl.TexParameterfv(texture_type, param_name, &self[0]);
-        }
+        unsafe { gl.TexParameterfv(texture_type, param_name, &self[0]) }
     }
 }
 
@@ -62,7 +52,7 @@ pub struct Texture {
     width: u32,
     height: u32,
     depth: Option<u32>,
-    data: Vec<u8>,
+    img: DynamicImage,
     gl: gl::Gl,
 }
 
@@ -94,9 +84,7 @@ impl Texture {
     ) -> Result<Texture, ImageError> {
         let img = image::open(res.path_for(filename))?;
         let mut id = 0;
-        unsafe {
-            gl.GenTextures(1, &mut id);
-        }
+        unsafe { gl.GenTextures(1, &mut id) }
         let (width, height) = img.dimensions();
         Ok(Texture {
             id: id,
@@ -111,16 +99,24 @@ impl Texture {
             } else {
                 Option::from(0)
             },
-            data: img.to_bytes(), // TODO: This should only be a borrow until we generate the texture, and then we can free this data
+            img: img,
             gl: gl.clone(),
         })
     }
 
     /// Bind this texture to its target
     pub fn bind(&self) {
-        unsafe {
-            self.gl.BindTexture(self.target, self.id);
-        }
+        unsafe { self.gl.BindTexture(self.target, self.id) }
+    }
+
+    /// Flip this texture horizontally
+    pub fn flip_horizontally(&mut self) {
+        self.img = self.img.fliph()
+    }
+
+    /// Flip this texture vertically
+    pub fn flip_vertically(&mut self) {
+        self.img = self.img.flipv()
     }
 
     /// Set a texture parameter on this `Texture` of the given `param_name` and `param_value`
@@ -129,17 +125,17 @@ impl Texture {
         param_name: gl::types::GLenum,
         param_value: T,
     ) {
-        param_value.set_texture_parameter(self.target, param_name, &self.gl);
+        param_value.set_texture_parameter(self.target, param_name, &self.gl)
     }
 
     /// Generate the OpenGL texture for this `Texture`
     pub fn generate(&self) {
-        self.generate_texture_with_optional_mipmap(false);
+        self.generate_texture_with_optional_mipmap(false)
     }
 
     /// Generate the OpenGL texture for this `Texture`, along with its associated mipmap
     pub fn generate_with_mipmap(&self) {
-        self.generate_texture_with_optional_mipmap(true);
+        self.generate_texture_with_optional_mipmap(true)
     }
 
     /// Generate a texture of this `Texture`'s target, and optionally, the associated mipmap
@@ -155,8 +151,8 @@ impl Texture {
                     0,
                     self.format,
                     gl::UNSIGNED_BYTE,
-                    self.data.as_ptr() as *const c_void,
-                );
+                    self.img.to_bytes().as_ptr() as *const c_void,
+                )
             },
             gl::TEXTURE_3D => unsafe {
                 let depth = self.depth.unwrap_or(0) as GLsizei;
@@ -170,17 +166,13 @@ impl Texture {
                     0,
                     self.format,
                     gl::UNSIGNED_BYTE,
-                    self.data.as_ptr() as *const c_void,
-                );
+                    self.img.to_bytes().as_ptr() as *const c_void,
+                )
             },
-            _ => {
-                println!("Unsupported texture type!");
-            }
+            _ => println!("Unsupported texture type!"),
         }
         if gen_mipmap {
-            unsafe {
-                self.gl.GenerateMipmap(self.target);
-            }
+            unsafe { self.gl.GenerateMipmap(self.target) }
         }
     }
 }

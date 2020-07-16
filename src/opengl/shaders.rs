@@ -6,19 +6,19 @@ use std::{
 };
 
 // Shader types
-const SHADER_EXT: [(&str, GLenum); 2] =
-    [(".vert", gl::VERTEX_SHADER), (".frag", gl::FRAGMENT_SHADER)];
+const SHADER_EXT: [(&str, GLenum); 2] = [(".vs", gl::VERTEX_SHADER), (".fs", gl::FRAGMENT_SHADER)];
 
 /// Extension to primitive types which support OpenGL shader uniform variables
 pub trait ShaderUniformType {
-    fn set_uniform(&self, program_id: &gl::types::GLuint, name: &str, gl: &gl::Gl);
+    fn set_uniform(&self, program_id: &gl::types::GLuint, name: &CStr, gl: &gl::Gl);
 }
 
 impl ShaderUniformType for bool {
-    fn set_uniform(&self, program_id: &gl::types::GLuint, name: &str, gl: &gl::Gl) {
+    fn set_uniform(&self, program_id: &gl::types::GLuint, name: &CStr, gl: &gl::Gl) {
+        println!("Fetching/setting uniform location of {:?}...", name);
         unsafe {
             gl.Uniform1i(
-                gl.GetUniformLocation(*program_id, name.as_ptr() as *const GLchar),
+                gl.GetUniformLocation(*program_id, name.as_ptr()),
                 *self as GLint,
             );
         }
@@ -26,10 +26,11 @@ impl ShaderUniformType for bool {
 }
 
 impl ShaderUniformType for u32 {
-    fn set_uniform(&self, program_id: &gl::types::GLuint, name: &str, gl: &gl::Gl) {
+    fn set_uniform(&self, program_id: &gl::types::GLuint, name: &CStr, gl: &gl::Gl) {
+        println!("Fetching/setting uniform location of {:?}...", name);
         unsafe {
             gl.Uniform1i(
-                gl.GetUniformLocation(*program_id, name.as_ptr() as *const GLchar),
+                gl.GetUniformLocation(*program_id, name.as_ptr()),
                 *self as GLint,
             );
         }
@@ -37,10 +38,11 @@ impl ShaderUniformType for u32 {
 }
 
 impl ShaderUniformType for i32 {
-    fn set_uniform(&self, program_id: &gl::types::GLuint, name: &str, gl: &gl::Gl) {
+    fn set_uniform(&self, program_id: &gl::types::GLuint, name: &CStr, gl: &gl::Gl) {
+        println!("Fetching/setting uniform location of {:?}...", name);
         unsafe {
             gl.Uniform1i(
-                gl.GetUniformLocation(*program_id, name.as_ptr() as *const GLchar),
+                gl.GetUniformLocation(*program_id, name.as_ptr()),
                 *self as GLint,
             );
         }
@@ -48,10 +50,11 @@ impl ShaderUniformType for i32 {
 }
 
 impl ShaderUniformType for f32 {
-    fn set_uniform(&self, program_id: &gl::types::GLuint, name: &str, gl: &gl::Gl) {
+    fn set_uniform(&self, program_id: &gl::types::GLuint, name: &CStr, gl: &gl::Gl) {
+        println!("Fetching/setting uniform location of {:?}...", name);
         unsafe {
             gl.Uniform1f(
-                gl.GetUniformLocation(*program_id, name.as_ptr() as *const GLchar),
+                gl.GetUniformLocation(*program_id, name.as_ptr()),
                 *self as GLfloat,
             );
         }
@@ -247,7 +250,8 @@ impl ShaderProgram {
 
     /// Set the value of a uniform variable in the current shader program stack, if it exists
     pub fn set_uniform<T: ShaderUniformType>(&self, name: &str, value: T) {
-        value.set_uniform(&self.id, name, &self.gl);
+        let name_cstr = CString::new(name).unwrap_or_default(); // NOTE: Rust strings are not null terminated. Need to convert to CString here or glGetUniformLocation will not work!
+        value.set_uniform(&self.id, name_cstr.as_c_str(), &self.gl);
     }
 
     /// Create a shader program with the given list of shaders

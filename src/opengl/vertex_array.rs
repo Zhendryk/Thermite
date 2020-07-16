@@ -69,6 +69,20 @@ impl VertexArray {
         let layout = vbo.layout();
         for component in layout.components() {
             match component.kind() {
+                buffer_layout::BufferComponentType::Float2 => {
+                    unsafe {
+                        self.gl.EnableVertexAttribArray(self.vb_index);
+                        self.gl.VertexAttribPointer(
+                            self.vb_index as GLuint,
+                            *component.count() as GLint,
+                            gl::FLOAT,
+                            *component.normalized() as GLboolean,
+                            *layout.stride() as GLsizei,
+                            *component.offset() as *const c_void,
+                        );
+                    }
+                    self.vb_index += 1;
+                }
                 buffer_layout::BufferComponentType::Float3 => {
                     unsafe {
                         self.gl.EnableVertexAttribArray(self.vb_index);

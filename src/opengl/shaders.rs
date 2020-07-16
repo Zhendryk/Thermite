@@ -9,6 +9,55 @@ use std::{
 const SHADER_EXT: [(&str, GLenum); 2] =
     [(".vert", gl::VERTEX_SHADER), (".frag", gl::FRAGMENT_SHADER)];
 
+/// Extension to primitive types which support OpenGL shader uniform variables
+pub trait ShaderUniformType {
+    fn set_uniform(&self, program_id: &gl::types::GLuint, name: &str, gl: &gl::Gl);
+}
+
+impl ShaderUniformType for bool {
+    fn set_uniform(&self, program_id: &gl::types::GLuint, name: &str, gl: &gl::Gl) {
+        unsafe {
+            gl.Uniform1i(
+                gl.GetUniformLocation(*program_id, name.as_ptr() as *const GLchar),
+                *self as GLint,
+            );
+        }
+    }
+}
+
+impl ShaderUniformType for u32 {
+    fn set_uniform(&self, program_id: &gl::types::GLuint, name: &str, gl: &gl::Gl) {
+        unsafe {
+            gl.Uniform1i(
+                gl.GetUniformLocation(*program_id, name.as_ptr() as *const GLchar),
+                *self as GLint,
+            );
+        }
+    }
+}
+
+impl ShaderUniformType for i32 {
+    fn set_uniform(&self, program_id: &gl::types::GLuint, name: &str, gl: &gl::Gl) {
+        unsafe {
+            gl.Uniform1i(
+                gl.GetUniformLocation(*program_id, name.as_ptr() as *const GLchar),
+                *self as GLint,
+            );
+        }
+    }
+}
+
+impl ShaderUniformType for f32 {
+    fn set_uniform(&self, program_id: &gl::types::GLuint, name: &str, gl: &gl::Gl) {
+        unsafe {
+            gl.Uniform1f(
+                gl.GetUniformLocation(*program_id, name.as_ptr() as *const GLchar),
+                *self as GLfloat,
+            );
+        }
+    }
+}
+
 // Errors relating to `Shader`s and `ShaderProgram`s
 #[derive(Debug)]
 pub enum ShaderError {
@@ -196,37 +245,9 @@ impl ShaderProgram {
         }
     }
 
-    /// Sets the value of a uniform boolean variable in the shader program stack, if it exists
-    pub fn set_uniform_bool(&self, name: &str, value: bool) {
-        unsafe {
-            self.gl.Uniform1i(
-                self.gl
-                    .GetUniformLocation(self.id, name.as_ptr() as *const GLchar),
-                value as GLint,
-            );
-        }
-    }
-
-    /// Sets the value of a uniform int variable in the shader program stack, if it exists
-    pub fn set_uniform_int(&self, name: &str, value: i32) {
-        unsafe {
-            self.gl.Uniform1i(
-                self.gl
-                    .GetUniformLocation(self.id, name.as_ptr() as *const GLchar),
-                value as GLint,
-            );
-        }
-    }
-
-    /// Sets the value of a uniform float variable in the shader program stack, if it exists
-    pub fn set_uniform_float(&self, name: &str, value: f32) {
-        unsafe {
-            self.gl.Uniform1f(
-                self.gl
-                    .GetUniformLocation(self.id, name.as_ptr() as *const GLchar),
-                value as GLfloat,
-            );
-        }
+    /// Set the value of a uniform variable in the current shader program stack, if it exists
+    pub fn set_uniform<T: ShaderUniformType>(&self, name: &str, value: T) {
+        value.set_uniform(&self.id, name, &self.gl);
     }
 
     /// Create a shader program with the given list of shaders

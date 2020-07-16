@@ -53,17 +53,10 @@ fn main() {
         -0.5, 0.5, 0.0, 1.0, 1.0, 0.0, 0.0, 1.0, // top left
     ];
     let indices: [u32; 6] = [0, 1, 2, 0, 2, 3];
-    // TODO: Load texture from `Resource`, incorporate into Texture::new
-    // let textures = Resource::new(Path::new("assets/textures"))
-    //     .expect("Could not create resource from assets/textures");
-    let texture = Texture::new(
-        &PathBuf::from("assets/textures/wall.jpg"),
-        gl::TEXTURE_2D,
-        gl::RGB,
-        gl::RGB,
-        &gl,
-    )
-    .expect("Could not load wall texture");
+    let textures = Resource::new(Path::new("assets/textures"))
+        .expect("Could not create resource from assets/textures");
+    let texture = Texture::new("wall.jpg", &textures, gl::TEXTURE_2D, gl::RGB, gl::RGB, &gl)
+        .expect("Could not load wall texture");
     texture.bind();
     texture.set_texture_parameter(gl::TEXTURE_WRAP_S, gl::REPEAT);
     texture.set_texture_parameter(gl::TEXTURE_WRAP_T, gl::REPEAT);

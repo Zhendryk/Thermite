@@ -3,6 +3,7 @@ use gl::{
     types::{GLenum, GLfloat, GLint, GLsizei, GLuint},
 };
 extern crate image;
+use crate::resources;
 use image::{GenericImageView, ImageError};
 use std::os::raw::c_void;
 
@@ -70,7 +71,8 @@ impl Texture {
     ///
     /// ### Parameters
     ///
-    /// - `path`: The path to the asset to create a `Texture` out of
+    /// - `filename`: The name of the file to use for this texture, in the format "name.extension"
+    /// - `res`: The `Resource` containing the image file to use for this `Texture`
     /// - `target`: The type of texture to create (2D, 3D, etc.)
     /// - `internal_format`: Specifies the number of color components in the texture, as a GLenum
     /// - `format`: Specifies the format of the pixel data, as a GLenum
@@ -83,14 +85,14 @@ impl Texture {
     /// - `Ok`: A newly initialized `Texture` (unbound)
     /// - `Err`: An `image::ImageError` describing what went wrong during `Texture` initialization
     pub fn new(
-        path: &std::path::PathBuf,
+        filename: &str,
+        res: &resources::Resource,
         target: gl::types::GLenum,
         internal_format: gl::types::GLenum,
         format: gl::types::GLenum,
         gl: &gl::Gl,
     ) -> Result<Texture, ImageError> {
-        // TODO: Load texture from `Resource`
-        let img = image::open(path)?;
+        let img = image::open(res.path_for(filename))?;
         let mut id = 0;
         unsafe {
             gl.GenTextures(1, &mut id);

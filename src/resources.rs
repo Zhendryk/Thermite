@@ -77,6 +77,11 @@ impl Resource {
         // If everything went according to plan, return the buffer as a CString
         Ok(unsafe { CString::from_vec_unchecked(buffer) }) // We checked above, so this should be safe
     }
+
+    /// Returns a `PathBuf` representing the full path to the given resource
+    pub fn path_for(&self, resource_name: &str) -> PathBuf {
+        resource_name_to_path(&self.root_path, resource_name)
+    }
 }
 
 fn resource_name_to_path(root_dir: &Path, location: &str) -> PathBuf {

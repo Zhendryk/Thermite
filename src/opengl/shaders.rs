@@ -61,6 +61,20 @@ impl ShaderUniformType for f32 {
     }
 }
 
+impl ShaderUniformType for &[f32] {
+    fn set_uniform(&self, program_id: &gl::types::GLuint, name: &CStr, gl: &gl::Gl) {
+        println!("Fetching/setting uniform location of {:?}...", name);
+        unsafe {
+            gl.UniformMatrix4fv(
+                gl.GetUniformLocation(*program_id, name.as_ptr()),
+                1,
+                gl::FALSE,
+                &self[0] as *const GLfloat,
+            );
+        }
+    }
+}
+
 // Errors relating to `Shader`s and `ShaderProgram`s
 #[derive(Debug)]
 pub enum ShaderError {

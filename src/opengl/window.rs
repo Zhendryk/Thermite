@@ -100,6 +100,11 @@ impl GLFWWindow {
         self.handle.should_close()
     }
 
+    /// Get the current value of the GLFW timer
+    pub fn get_time(&self) -> f64 {
+        self.glfw.get_time()
+    }
+
     /// Process/handle all pending events in this `GLFWWindow`'s event receiver
     pub fn process_events(&mut self, gl: &gl::Gl) {
         for (_, event) in glfw::flush_messages(&self.event_receiver) {

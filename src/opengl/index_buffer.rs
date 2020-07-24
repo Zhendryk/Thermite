@@ -31,7 +31,7 @@ impl IndexBuffer {
         }
     }
 
-    /// Returns an immutable reference to the OpenGL GLuint id of this `IndexBuffer`
+    /// Returns a reference to the OpenGL GLuint id of this `IndexBuffer`
     pub fn id(&self) -> &GLuint {
         &self.id
     }

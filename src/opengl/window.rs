@@ -1,3 +1,4 @@
+use crate::opengl::camera::{Camera, CameraMovementDirection};
 use gl;
 use glfw::{self, Action, Context, ErrorCallback, InitError, Key, WindowEvent, WindowHint};
 
@@ -55,17 +56,17 @@ impl GLFWWindow {
         })
     }
 
-    /// Returns an immutable reference to the width (pixels) of this `GLFWWindow`
+    /// Returns a reference to the width (pixels) of this `GLFWWindow`
     pub fn width(&self) -> &u32 {
         &self.width
     }
 
-    /// Returns an immutable reference to the height (pixels) of this `GLFWWindow`
+    /// Returns a reference to the height (pixels) of this `GLFWWindow`
     pub fn height(&self) -> &u32 {
         &self.height
     }
 
-    /// Returns an immutable reference to the title text of this `GLFWWindow`
+    /// Returns a reference to the title text of this `GLFWWindow`
     pub fn title(&self) -> &str {
         &self.title
     }
@@ -106,7 +107,7 @@ impl GLFWWindow {
     }
 
     /// Process/handle all pending events in this `GLFWWindow`'s event receiver
-    pub fn process_events(&mut self, gl: &gl::Gl) {
+    pub fn process_events(&mut self, gl: &gl::Gl, delta_time: &f32, camera: &mut Camera) {
         for (_, event) in glfw::flush_messages(&self.event_receiver) {
             match event {
                 WindowEvent::FramebufferSize(width, height) => unsafe {
@@ -114,6 +115,30 @@ impl GLFWWindow {
                 },
                 WindowEvent::Key(Key::Escape, _, Action::Press, _) => {
                     self.handle.set_should_close(true)
+                }
+                WindowEvent::Key(Key::W, _, Action::Press, _) => {
+                    camera.process_keyboard(CameraMovementDirection::FORWARD, delta_time)
+                }
+                WindowEvent::Key(Key::W, _, Action::Repeat, _) => {
+                    camera.process_keyboard(CameraMovementDirection::FORWARD, delta_time)
+                }
+                WindowEvent::Key(Key::S, _, Action::Press, _) => {
+                    camera.process_keyboard(CameraMovementDirection::BACKWARD, delta_time)
+                }
+                WindowEvent::Key(Key::S, _, Action::Repeat, _) => {
+                    camera.process_keyboard(CameraMovementDirection::BACKWARD, delta_time)
+                }
+                WindowEvent::Key(Key::A, _, Action::Press, _) => {
+                    camera.process_keyboard(CameraMovementDirection::LEFT, delta_time)
+                }
+                WindowEvent::Key(Key::A, _, Action::Repeat, _) => {
+                    camera.process_keyboard(CameraMovementDirection::LEFT, delta_time)
+                }
+                WindowEvent::Key(Key::D, _, Action::Press, _) => {
+                    camera.process_keyboard(CameraMovementDirection::RIGHT, delta_time)
+                }
+                WindowEvent::Key(Key::D, _, Action::Repeat, _) => {
+                    camera.process_keyboard(CameraMovementDirection::RIGHT, delta_time)
                 }
                 _ => {}
             }

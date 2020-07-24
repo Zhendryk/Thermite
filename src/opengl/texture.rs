@@ -8,6 +8,7 @@ use image::{DynamicImage, GenericImageView, ImageError};
 use std::os::raw::c_void;
 
 /// Allows for setting OpenGL texture parameter values, wraps `glTexParameter<type>`
+/// TODO: Refactor this into a macro to reduce code duplication
 pub trait TextureParameterType {
     fn set_texture_parameter(&self, texture_type: GLenum, param_name: GLenum, gl: &gl::Gl);
 }

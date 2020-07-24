@@ -6,7 +6,8 @@ use std::path::Path;
 pub mod opengl;
 use opengl::{
     buffer_layout::{BufferComponent, BufferComponentType, BufferLayout},
-    index_buffer::IndexBuffer,
+    camera::Camera,
+    // index_buffer::IndexBuffer,
     shaders,
     texture::Texture,
     vertex_array::VertexArray,
@@ -108,6 +109,20 @@ fn main() {
         -0.5, 0.5, -0.5, 0.0, 1.0, // p6
     ];
 
+    // Create 10 cubes
+    let cube_positions: [glm::Vec3; 10] = [
+        glm::vec3(0.0, 0.0, -2.0),
+        glm::vec3(2.0, 5.0, -15.0),
+        glm::vec3(-1.5, -2.2, -2.5),
+        glm::vec3(-3.8, -2.0, -12.3),
+        glm::vec3(2.4, -0.4, -3.5),
+        glm::vec3(-1.7, 3.0, -7.5),
+        glm::vec3(1.3, -2.0, -2.5),
+        glm::vec3(1.5, 2.0, -2.5),
+        glm::vec3(1.5, 0.2, -1.5),
+        glm::vec3(-1.3, 1.0, -1.5),
+    ];
+
     // let indices: [u32; 6] = [0, 1, 2, 0, 2, 3];
     let positions = BufferComponent::new(
         String::from("positions"),
@@ -168,8 +183,16 @@ fn main() {
     //     gl.PolygonMode(gl::FRONT_AND_BACK, gl::LINE);
     // }
 
+    let mut camera = Camera::new();
+
+    let mut delta_time = 0.0;
+    let mut last_frame = 0.0;
+
     while !window.should_close() {
-        window.process_events(&gl);
+        let current_frame = window.get_time();
+        delta_time = current_frame - last_frame;
+        last_frame = current_frame;
+        window.process_events(&gl, &(delta_time as f32), &mut camera);
 
         unsafe {
             // Clear
@@ -184,38 +207,42 @@ fn main() {
 
             // shader program work
             shader_program.use_program();
-            let mut model = glm::Mat4::identity();
-            model = glm::rotate(
-                &model,
-                (window.get_time() * radians(50.0)) as f32,
-                &glm::vec3(0.5, 1.0, 0.0),
-            );
-            let mut view = glm::Mat4::identity();
-            view = glm::translate(&view, &glm::vec3(0.0, 0.0, -3.0));
+            let view = camera.get_view_matrix();
             let projection = glm::perspective(
                 WIDTH as f32 / HEIGHT as f32,
                 radians(45.0) as f32,
                 0.1,
                 100.0,
             );
-            shader_program.set_uniform("model", glm::value_ptr(&model));
             shader_program.set_uniform("view", glm::value_ptr(&view));
             shader_program.set_uniform("projection", glm::value_ptr(&projection));
 
             // bind the data
             vao.bind();
+            for i in 0..10 {
+                let mut model = glm::Mat4::identity();
+                model = glm::translate(&model, &cube_positions[i]);
+                let angle: f64 = 20.0 * i as f64;
+                let norm = angle / 20.0;
+                model = glm::rotate(
+                    &model,
+                    (window.get_time() * radians(angle)) as f32,
+                    &glm::vec3(norm as f32, 1.0, 0.0),
+                );
+                shader_program.set_uniform("model", glm::value_ptr(&model));
 
-            // Draw
-            // For non-ibo renders
-            gl.DrawArrays(gl::TRIANGLES, 0, 36);
+                // Draw
+                // For non-ibo renders
+                gl.DrawArrays(gl::TRIANGLES, 0, 36);
 
-            // For ibo renders
-            // gl.DrawElements(
-            //     gl::TRIANGLES,
-            //     6,
-            //     gl::UNSIGNED_INT,
-            //     0 as *const std::os::raw::c_void,
-            // );
+                // For ibo renders
+                // gl.DrawElements(
+                //     gl::TRIANGLES,
+                //     6,
+                //     gl::UNSIGNED_INT,
+                //     0 as *const std::os::raw::c_void,
+                // );
+            }
         }
 
         window.poll_events();

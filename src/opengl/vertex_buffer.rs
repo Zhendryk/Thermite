@@ -35,12 +35,12 @@ impl VertexBuffer {
         }
     }
 
-    /// Returns an immutable reference to the OpenGL GLuint id of this `VertexBuffer`
+    /// Returns a reference to the OpenGL GLuint id of this `VertexBuffer`
     pub fn id(&self) -> &GLuint {
         &self.id
     }
 
-    /// Returns an immutable reference to the `BufferLayout` of the data within this `VertexBuffer`
+    /// Returns a reference to the `BufferLayout` of the data within this `VertexBuffer`
     pub fn layout(&self) -> &BufferLayout {
         &self.layout
     }

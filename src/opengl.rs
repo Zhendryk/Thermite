@@ -1,4 +1,5 @@
 pub mod buffer_layout;
+pub mod camera;
 pub mod index_buffer;
 pub mod shaders;
 pub mod texture;

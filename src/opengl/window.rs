@@ -1,3 +1,4 @@
+use crate::opengl::camera::{Camera, CameraMovementDirection};
 use gl;
 use glfw::{self, Action, Context, ErrorCallback, InitError, Key, WindowEvent, WindowHint};
 
@@ -55,17 +56,17 @@ impl GLFWWindow {
         })
     }
 
-    /// Returns an immutable reference to the width (pixels) of this `GLFWWindow`
+    /// Returns a reference to the width (pixels) of this `GLFWWindow`
     pub fn width(&self) -> &u32 {
         &self.width
     }
 
-    /// Returns an immutable reference to the height (pixels) of this `GLFWWindow`
+    /// Returns a reference to the height (pixels) of this `GLFWWindow`
     pub fn height(&self) -> &u32 {
         &self.height
     }
 
-    /// Returns an immutable reference to the title text of this `GLFWWindow`
+    /// Returns a reference to the title text of this `GLFWWindow`
     pub fn title(&self) -> &str {
         &self.title
     }
@@ -75,9 +76,24 @@ impl GLFWWindow {
         self.handle.make_current()
     }
 
+    /// Wrapper for `glfwSetInputMode` called with `CURSOR`
+    pub fn set_cursor_mode(&mut self, cursor_mode: glfw::CursorMode) {
+        self.handle.set_cursor_mode(cursor_mode)
+    }
+
     /// Wrapper for `glfwSetKeyCallback`
     pub fn set_key_polling(&mut self, should_poll: bool) {
         self.handle.set_key_polling(should_poll)
+    }
+
+    /// Wrapper for `glfwSetScrollCallback`
+    pub fn set_scroll_polling(&mut self, should_poll: bool) {
+        self.handle.set_scroll_polling(should_poll)
+    }
+
+    /// Wrapper for `glfwSetCursorPosCallback`
+    pub fn set_cursor_pos_polling(&mut self, should_poll: bool) {
+        self.handle.set_cursor_pos_polling(should_poll)
     }
 
     /// Wrapper for `glfwSetFramebufferSizeCallback`
@@ -100,8 +116,21 @@ impl GLFWWindow {
         self.handle.should_close()
     }
 
+    /// Get the current value of the GLFW timer
+    pub fn get_time(&self) -> f64 {
+        self.glfw.get_time()
+    }
+
     /// Process/handle all pending events in this `GLFWWindow`'s event receiver
-    pub fn process_events(&mut self, gl: &gl::Gl) {
+    pub fn process_events(
+        &mut self,
+        gl: &gl::Gl,
+        delta_time: &f32,
+        last_x: &mut f64,
+        last_y: &mut f64,
+        first_mouse: &mut bool,
+        camera: &mut Camera,
+    ) {
         for (_, event) in glfw::flush_messages(&self.event_receiver) {
             match event {
                 WindowEvent::FramebufferSize(width, height) => unsafe {
@@ -109,6 +138,43 @@ impl GLFWWindow {
                 },
                 WindowEvent::Key(Key::Escape, _, Action::Press, _) => {
                     self.handle.set_should_close(true)
+                }
+                WindowEvent::Key(Key::W, _, Action::Press, _) => {
+                    camera.process_keyboard(CameraMovementDirection::FORWARD, delta_time)
+                }
+                WindowEvent::Key(Key::W, _, Action::Repeat, _) => {
+                    camera.process_keyboard(CameraMovementDirection::FORWARD, delta_time)
+                }
+                WindowEvent::Key(Key::S, _, Action::Press, _) => {
+                    camera.process_keyboard(CameraMovementDirection::BACKWARD, delta_time)
+                }
+                WindowEvent::Key(Key::S, _, Action::Repeat, _) => {
+                    camera.process_keyboard(CameraMovementDirection::BACKWARD, delta_time)
+                }
+                WindowEvent::Key(Key::A, _, Action::Press, _) => {
+                    camera.process_keyboard(CameraMovementDirection::LEFT, delta_time)
+                }
+                WindowEvent::Key(Key::A, _, Action::Repeat, _) => {
+                    camera.process_keyboard(CameraMovementDirection::LEFT, delta_time)
+                }
+                WindowEvent::Key(Key::D, _, Action::Press, _) => {
+                    camera.process_keyboard(CameraMovementDirection::RIGHT, delta_time)
+                }
+                WindowEvent::Key(Key::D, _, Action::Repeat, _) => {
+                    camera.process_keyboard(CameraMovementDirection::RIGHT, delta_time)
+                }
+                WindowEvent::Scroll(_, y_offset) => camera.process_mouse_scroll(y_offset as f32),
+                WindowEvent::CursorPos(x_pos, y_pos) => {
+                    if *first_mouse {
+                        *last_x = x_pos;
+                        *last_y = y_pos;
+                        *first_mouse = false;
+                    }
+                    let x_offset = x_pos - *last_x;
+                    let y_offset = *last_y - y_pos;
+                    *last_x = x_pos;
+                    *last_y = y_pos;
+                    camera.process_mouse_move(x_offset as f32, y_offset as f32, true)
                 }
                 _ => {}
             }

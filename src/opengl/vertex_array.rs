@@ -39,7 +39,7 @@ impl VertexArray {
         }
     }
 
-    /// Returns an immutable reference to the OpenGL GLuint id of this `VertexArray`
+    /// Returns a reference to the OpenGL GLuint id of this `VertexArray`
     pub fn id(&self) -> &GLuint {
         &self.id
     }

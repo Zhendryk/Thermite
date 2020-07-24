@@ -9,6 +9,7 @@ edition = "2018"
 [dependencies]
 glfw = "*"
 gl = { path = "lib/gl" }
+nalgebra-glm = "*"
 image = "*"
 
 [build-dependencies]

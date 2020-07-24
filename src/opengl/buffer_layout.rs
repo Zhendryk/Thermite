@@ -90,27 +90,27 @@ impl BufferComponent {
         }
     }
 
-    /// Returns an immutable reference to this `BufferComponent`'s total size in bytes
+    /// Returns a reference to this `BufferComponent`'s total size in bytes
     pub fn size(&self) -> &usize {
         &self.size
     }
 
-    /// Returns an immutable reference to the type/amount of data within this `BufferComponent`, represented as a `BufferComponentType`
+    /// Returns a reference to the type/amount of data within this `BufferComponent`, represented as a `BufferComponentType`
     pub fn kind(&self) -> &BufferComponentType {
         &self.kind
     }
 
-    /// Returns an immutable reference to the number of data points in this `BufferComponent`
+    /// Returns a reference to the number of data points in this `BufferComponent`
     pub fn count(&self) -> &usize {
         &self.count
     }
 
-    /// Returns an immutable reference to whether or not the data within this `BufferComponent` is normalized to a 0.0 - 1.0 numerical range
+    /// Returns a reference to whether or not the data within this `BufferComponent` is normalized to a 0.0 - 1.0 numerical range
     pub fn normalized(&self) -> &bool {
         &self.normalized
     }
 
-    /// Returns an immutable reference to the offset index within this `BufferComponent`'s owner `BufferLayout` (0 if this is not yet a part of a `BufferLayout`)
+    /// Returns a reference to the offset index within this `BufferComponent`'s owner `BufferLayout` (0 if this is not yet a part of a `BufferLayout`)
     pub fn offset(&self) -> &usize {
         &self.offset
     }
@@ -151,12 +151,12 @@ impl BufferLayout {
         }
     }
 
-    /// Returns an immutable reference to this `BufferLayout`'s stride (distance in bytes from one internal `BufferComponent` to the next)
+    /// Returns a reference to this `BufferLayout`'s stride (distance in bytes from one internal `BufferComponent` to the next)
     pub fn stride(&self) -> &usize {
         &self.stride
     }
 
-    /// Returns an immutable reference to the internal `BufferComponents` of this `BufferLayout`
+    /// Returns a reference to the internal `BufferComponents` of this `BufferLayout`
     pub fn components(&self) -> &Vec<BufferComponent> {
         &self.components
     }

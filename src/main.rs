@@ -20,6 +20,9 @@ use resources::Resource;
 
 const WIDTH: u32 = 1920;
 const HEIGHT: u32 = 1080;
+const ASPECT: f32 = WIDTH as f32 / HEIGHT as f32;
+const CENTER_X: f64 = WIDTH as f64 / 2.0;
+const CENTER_Y: f64 = HEIGHT as f64 / 2.0;
 
 fn main() {
     // Create a GLFW window
@@ -42,6 +45,9 @@ fn main() {
     window.make_context_current();
     window.set_key_polling(true);
     window.set_framebuffer_size_polling(true);
+    window.set_scroll_polling(true);
+    window.set_cursor_pos_polling(true);
+    window.set_cursor_mode(glfw::CursorMode::Disabled);
 
     // Load all of our OpenGL function pointers into the gl wrapper object
     let gl = window.load_opengl_fn_ptrs();
@@ -187,12 +193,22 @@ fn main() {
 
     let mut delta_time = 0.0;
     let mut last_frame = 0.0;
+    let mut last_x: f64 = CENTER_X;
+    let mut last_y: f64 = CENTER_Y;
+    let mut first_mouse: bool = true;
 
     while !window.should_close() {
         let current_frame = window.get_time();
         delta_time = current_frame - last_frame;
         last_frame = current_frame;
-        window.process_events(&gl, &(delta_time as f32), &mut camera);
+        window.process_events(
+            &gl,
+            &(delta_time as f32),
+            &mut last_x,
+            &mut last_y,
+            &mut first_mouse,
+            &mut camera,
+        );
 
         unsafe {
             // Clear
@@ -208,12 +224,8 @@ fn main() {
             // shader program work
             shader_program.use_program();
             let view = camera.get_view_matrix();
-            let projection = glm::perspective(
-                WIDTH as f32 / HEIGHT as f32,
-                radians(45.0) as f32,
-                0.1,
-                100.0,
-            );
+            let projection =
+                glm::perspective(ASPECT, radians(*camera.fov() as f64) as f32, 0.1, 100.0);
             shader_program.set_uniform("view", glm::value_ptr(&view));
             shader_program.set_uniform("projection", glm::value_ptr(&projection));
 

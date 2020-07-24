@@ -6,6 +6,7 @@ const SPEED_DEFAULT: f32 = 2.5;
 const SENSITIVITY_DEFAULT: f32 = 0.1;
 const ZOOM_DEFAULT: f32 = 45.0;
 
+/// Directions that a controllable `Camera` object can move in
 pub enum CameraMovementDirection {
     FORWARD,
     BACKWARD,
@@ -13,6 +14,7 @@ pub enum CameraMovementDirection {
     RIGHT,
 }
 
+/// A controllable `Camera` object to view the rendered world with
 pub struct Camera {
     position: glm::Vec3,
     front: glm::Vec3,
@@ -118,6 +120,10 @@ impl Camera {
     /// Returns a reference to this `Camera`'s `movement_speed` value
     pub fn speed(&self) -> &f32 {
         &self.movement_speed
+    }
+    /// Returns a reference to this `Camera`'s `zoom` (field of view) value
+    pub fn fov(&self) -> &f32 {
+        &self.zoom
     }
 
     /// Returns the view matrix calculated using Euler Angles and the LookAt Matrix

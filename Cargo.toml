@@ -6,14 +6,39 @@ edition = "2018"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
+[features]
+default = []
+metal = ["gfx-backend-metal"]
+dx12 = ["gfx-backend-dx12"]
+vulkan = ["gfx-backend-vulkan"]
+opengl = ["gfx-backend-gl"]
+
+[build-dependencies]
+walkdir = "*"
+
 [dependencies]
-glfw = "*"
-gl = { path = "lib/gl" }
+log = "0.4.11"
+simple_logger = "1.6.0"
+winit = "0.22.2"
+gfx = "0.18.2"
+glutin = "0.24.1"
+gfx_window_glutin = "0.31.0"
+arrayvec = "0.5.1"
 nalgebra-glm = "*"
 image = "*"
 
-[build-dependencies]
-walkdir = "2.1"
+[dependencies.gfx-backend-vulkan]
+version = "0.5.11"
+optional = true
 
-[features]
-gl_debug = ["gl/debug"]
+[dependencies.gfx-backend-gl]
+version = "0.5.1"
+optional = true
+
+[target.'cfg(target_os = "macos")'.dependencies.gfx-backend-metal]
+version = "0.5.6"
+optional = true
+
+[target.'cfg(windows)'.dependencies.gfx-backend-dx12]
+version = "0.5.8"
+optional = true

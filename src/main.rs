@@ -1,3 +1,14 @@
+// Conditionally compile the proper gfx backend as gfx_backend
+#[cfg(feature = "dx12")]
+use gfx_backend_dx12 as thermite_gfx_backend;
+// TODO: Configure HALState to accomodate gfx_backend_gl (no Instance)
+// #[cfg(feature = "opengl")]
+// use gfx_backend_gl as thermite_gfx_backend;
+#[cfg(feature = "metal")]
+use gfx_backend_metal as thermite_gfx_backend;
+#[cfg(feature = "vulkan")]
+use gfx_backend_vulkan as thermite_gfx_backend;
+
 #[allow(unused_imports)]
 use log::{debug, error, info, trace, warn};
 use winit::{

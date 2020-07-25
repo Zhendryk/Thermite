@@ -1,23 +1,5 @@
-// Conditionally compile the proper gfx backend as gfx_backend
-#[cfg(feature = "dx12")]
-use gfx_backend_dx12 as gfx_backend;
-#[cfg(feature = "opengl")]
-use gfx_backend_gl as gfx_backend;
-#[cfg(feature = "metal")]
-use gfx_backend_metal as gfx_backend;
-#[cfg(feature = "vulkan")]
-use gfx_backend_vulkan as gfx_backend;
-
-#[allow(unused_imports)]
-use log::{debug, error, info, trace, warn};
-use winit::{
-    self,
-    dpi::LogicalSize,
-    error::OsError,
-    event::{Event, WindowEvent},
-    event_loop::{ControlFlow, EventLoop},
-    window::{WindowBuilder, WindowId},
-};
+// use raw_window_handle;
+use winit::{self, dpi::LogicalSize, error::OsError, event_loop::EventLoop, window::WindowBuilder};
 
 #[derive(Debug)]
 pub struct Window {
@@ -53,15 +35,20 @@ impl Window {
         self.handle.id()
     }
 
-    /// Returns a reference to the title of this `Window`
-    pub fn title(&self) -> &str {
-        &self.title
-    }
+    // /// Returns a reference to the winit handle for this `Window`
+    // pub fn handle(&self) -> &winit::window::Window {
+    //     &self.handle
+    // }
 
-    /// Returns a reference to the dimensions of this `Window`
-    pub fn size(&self) -> &winit::dpi::LogicalSize<u16> {
-        &self.size
-    }
+    // /// Returns a reference to the title of this `Window`
+    // pub fn title(&self) -> &str {
+    //     &self.title
+    // }
+
+    // /// Returns a reference to the dimensions of this `Window`
+    // pub fn size(&self) -> &winit::dpi::LogicalSize<u16> {
+    //     &self.size
+    // }
 
     /// Returns the `EventLoop` associated with this `Window`
     pub fn event_loop(&mut self) -> winit::event_loop::EventLoop<()> {
@@ -70,10 +57,10 @@ impl Window {
             .expect("Could not retreive the window's event loop!")
     }
 
-    /// Returns a reference to whether or not this `Window` has been signaled to close
-    pub fn should_close(&self) -> &bool {
-        &self.should_close
-    }
+    // /// Returns a reference to whether or not this `Window` has been signaled to close
+    // pub fn should_close(&self) -> &bool {
+    //     &self.should_close
+    // }
 }
 
 impl Default for Window {
@@ -83,7 +70,7 @@ impl Default for Window {
     /// If a `OsError` occurs.
     fn default() -> Self {
         Self::new(
-            "Thermite Engine",
+            format!("Thermite Engine v{}", env!("CARGO_PKG_VERSION")),
             LogicalSize {
                 width: 800,
                 height: 600,
@@ -93,18 +80,11 @@ impl Default for Window {
     }
 }
 
-// fn main() {
-//     simple_logger::init().unwrap();
-//     let mut window = Window::default();
-//     // move forces the closure to take ownership of the captured data in it's environment (e.g. window)
-//     window.event_loop().run(move |event, _, control_flow| {
-//         *control_flow = ControlFlow::Wait;
-//         match event {
-//             Event::WindowEvent {
-//                 event: WindowEvent::CloseRequested,
-//                 window_id,
-//             } if window_id == window.id() => *control_flow = ControlFlow::Exit,
-//             _ => (),
-//         }
-//     });
+// #[cfg(target_os = "linux")]
+// unsafe impl raw_window_handle::HasRawWindowHandle for Window {
+//     fn raw_window_handle(&self) -> raw_window_handle::RawWindowHandle {
+//         let empty_handle = raw_window_handle::unix::WaylandHandle::empty();
+//         empty_handle.surface
+//         raw_window_handle::RawWindowHandle::Wayland()
+//     }
 // }

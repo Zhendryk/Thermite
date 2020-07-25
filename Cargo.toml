@@ -15,17 +15,16 @@ opengl = ["gfx-backend-gl"]
 
 [build-dependencies]
 walkdir = "*"
+shaderc = "0.6"
 
 [dependencies]
 log = "0.4.11"
 simple_logger = "1.6.0"
 winit = "0.22.2"
-gfx = "0.18.2"
-glutin = "0.24.1"
-gfx_window_glutin = "0.31.0"
+gfx-hal = "0.5.3"
 arrayvec = "0.5.1"
-nalgebra-glm = "*"
-image = "*"
+# nalgebra-glm = "*"
+# image = "*"
 
 [dependencies.gfx-backend-vulkan]
 version = "0.5.11"

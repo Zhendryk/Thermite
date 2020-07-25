@@ -80,16 +80,17 @@ impl Resource {
 
     /// Returns a `PathBuf` representing the full path to the given resource
     pub fn path_for(&self, resource_name: &str) -> PathBuf {
-        resource_name_to_path(&self.root_path, resource_name)
+        self.resource_name_to_path(&self.root_path, resource_name)
     }
-}
 
-fn resource_name_to_path(root_dir: &Path, location: &str) -> PathBuf {
-    // Into is implemented on any type A where B::from(A) is implemented, which exists for Path (A) to PathBuf (B)
-    let mut path: PathBuf = root_dir.into();
-    // Construct a path by splitting the location by path separator and rejoining with the new location
-    for part in location.split("/") {
-        path = path.join(part);
+    /// Returns a `PathBuf` representing the full path to the given resource
+    fn resource_name_to_path(root_dir: &Path, location: &str) -> PathBuf {
+        // Into is implemented on any type A where B::from(A) is implemented, which exists for Path (A) to PathBuf (B)
+        let mut path: PathBuf = root_dir.into();
+        // Construct a path by splitting the location by path separator and rejoining with the new location
+        for part in location.split("/") {
+            path = path.join(part);
+        }
+        path
     }
-    path
 }

@@ -6,4 +6,5 @@
 // pub mod vertex_array;
 // pub mod vertex_buffer;
 // pub mod window;
+pub mod hal_state;
 pub mod window;

@@ -6,39 +6,13 @@ edition = "2018"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
-[features]
-default = []
-metal = ["gfx-backend-metal"]
-dx12 = ["gfx-backend-dx12"]
-vulkan = ["gfx-backend-vulkan"]
-opengl = ["gfx-backend-gl"]
 
 [build-dependencies]
 walkdir = "*"
 shaderc = "0.6"
 
 [dependencies]
-thermite_core = { path = "thermite_core", version = "*" }
-log = "0.4.11"
-simple_logger = "1.6.0"
-winit = "0.22.2"
-gfx-hal = "0.5.3"
-arrayvec = "0.5.1"
-# nalgebra-glm = "*"
-# image = "*"
-
-[dependencies.gfx-backend-vulkan]
-version = "0.5.11"
-optional = true
-
-[dependencies.gfx-backend-gl]
-version = "0.5.1"
-optional = true
-
-[target.'cfg(target_os = "macos")'.dependencies.gfx-backend-metal]
-version = "0.5.6"
-optional = true
-
-[target.'cfg(windows)'.dependencies.gfx-backend-dx12]
-version = "0.5.8"
-optional = true
+thermite_core = { path = "thermite_core", version = "=0.1.0" }
+thermite_ui = { path = "thermite_ui", version = "=0.1.0" }
+log = "=0.4.11"
+simple_logger = "=1.6.0"

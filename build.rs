@@ -1,4 +1,4 @@
-extern crate shaderc;
+use shaderc;
 use std::env;
 use std::fs::{self, DirBuilder};
 use std::path::{Path, PathBuf};
@@ -6,7 +6,7 @@ use walkdir::{self, WalkDir};
 
 fn main() {
     // Tell the build script to only run again if we change our source shaders
-    // println!("cargo:rerun-if-changed=assets/shaders");
+    println!("cargo:rerun-if-changed=assets/shaders");
     // Grab our environment variables to we can place artifacts in the correct places
     // The directory where this build script places artifacts
     let out_dir = PathBuf::from(env::var("OUT_DIR").expect("Couldn't get OUT_DIR envVar"));
@@ -43,7 +43,6 @@ fn locate_target_dir_from_output_dir(mut target_dir_search: &Path) -> Option<&Pa
             None => break,
         }
     }
-
     None
 }
 
@@ -121,8 +120,8 @@ fn cross_compile_glsl_shaders_to_spirv() {
                             .expect("Couldn't write compiled SPIR-V shader to output dir");
                     }
                     Result::Err(err) => {
-                        println!(
-                            "{} GLSL -> SPIR-V cross-compilation failed: {}",
+                        panic!(
+                            "{} GLSL -> SPIR-V cross-compilation failed:\n{}",
                             filename, err
                         );
                     }

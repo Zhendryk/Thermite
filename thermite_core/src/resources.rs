@@ -63,7 +63,7 @@ impl Resource {
     ///
     /// - `Ok`: A `CString` containing the raw data of the resource file in question
     /// - `Err`: A `ResourceError` describing the various IO errors that may have occurred during loading of the resource file
-    pub fn load(&self, resource_name: &str) -> Result<CString, ResourceError> {
+    pub fn load_to_cstring(&self, resource_name: &str) -> Result<CString, ResourceError> {
         // Open the file, and if the result is an error, return (? is shorthand for a match statement), otherwise store the data in file
         let mut file = fs::File::open(resource_name_to_path(&self.root_path, resource_name))?;
         // Create a byte buffer to read the file into (+1 size for null termination character)
@@ -78,19 +78,45 @@ impl Resource {
         Ok(unsafe { CString::from_vec_unchecked(buffer) }) // We checked above, so this should be safe
     }
 
-    /// Returns a `PathBuf` representing the full path to the given resource
-    pub fn path_for(&self, resource_name: &str) -> PathBuf {
-        self.resource_name_to_path(&self.root_path, resource_name)
+    /// Load the given resource file inside this `Resource`'s root path and return the data in a byte vector
+    ///
+    /// ### Parameters
+    ///
+    /// - `resource_name`: The filename of the resource to load into memory
+    ///
+    /// ### Returns
+    ///
+    /// A `Result` which is:
+    ///
+    /// - `Ok`: A `Vec<u8>` containing the raw data bytes of the resource file in question
+    /// - `Err`: A `ResourceError` describing the various IO errors that may have occurred during loading of the resource file
+    pub fn load_to_bytes(&self, resource_name: &str) -> Result<Vec<u8>, ResourceError> {
+        // Open the file, and if the result is an error, return (? is shorthand for a match statement), otherwise store the data in file
+        let mut file = fs::File::open(resource_name_to_path(&self.root_path, resource_name))?;
+        // Create a byte buffer to read the file into (+1 size for null termination character)
+        let mut buffer: Vec<u8> = Vec::with_capacity(file.metadata()?.len() as usize + 1);
+        // Read the file's data into the buffer
+        file.read_to_end(&mut buffer)?;
+        // Check the file for interior 0 (null) bytes
+        if buffer.iter().find(|i| **i == 0).is_some() {
+            return Err(ResourceError::FileContainsNil);
+        }
+        Ok(buffer)
     }
 
     /// Returns a `PathBuf` representing the full path to the given resource
-    fn resource_name_to_path(root_dir: &Path, location: &str) -> PathBuf {
-        // Into is implemented on any type A where B::from(A) is implemented, which exists for Path (A) to PathBuf (B)
-        let mut path: PathBuf = root_dir.into();
-        // Construct a path by splitting the location by path separator and rejoining with the new location
-        for part in location.split("/") {
-            path = path.join(part);
-        }
-        path
+    pub fn path_for(&self, resource_name: &str) -> PathBuf {
+        resource_name_to_path(&self.root_path, resource_name)
     }
+}
+
+/// Returns a `PathBuf` representing the full path to the given resource
+fn resource_name_to_path(root_dir: &Path, location: &str) -> PathBuf {
+    // Into is implemented on any type A where B::from(A) is implemented, which exists for Path (A) to PathBuf (B)
+    let mut path: PathBuf = root_dir.into();
+    // Construct a path by splitting the location by path separator and rejoining with the new location
+    for part in location.split("/") {
+        path = path.join(part);
+    }
+    path
 }

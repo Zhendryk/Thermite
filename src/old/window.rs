@@ -35,15 +35,15 @@ impl Window {
         self.handle.id()
     }
 
-    // /// Returns a reference to the winit handle for this `Window`
-    // pub fn handle(&self) -> &winit::window::Window {
-    //     &self.handle
-    // }
+    /// Returns a reference to the winit handle for this `Window`
+    pub fn handle(&self) -> &winit::window::Window {
+        &self.handle
+    }
 
-    // /// Returns a reference to the title of this `Window`
-    // pub fn title(&self) -> &str {
-    //     &self.title
-    // }
+    /// Returns a reference to the title of this `Window`
+    pub fn title(&self) -> &str {
+        &self.title
+    }
 
     // /// Returns a reference to the dimensions of this `Window`
     // pub fn size(&self) -> &winit::dpi::LogicalSize<u16> {
@@ -79,12 +79,3 @@ impl Default for Window {
         .expect("Could not create a window!")
     }
 }
-
-// #[cfg(target_os = "linux")]
-// unsafe impl raw_window_handle::HasRawWindowHandle for Window {
-//     fn raw_window_handle(&self) -> raw_window_handle::RawWindowHandle {
-//         let empty_handle = raw_window_handle::unix::WaylandHandle::empty();
-//         empty_handle.surface
-//         raw_window_handle::RawWindowHandle::Wayland()
-//     }
-// }

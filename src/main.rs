@@ -1,4 +1,4 @@
-// Conditionally compile the proper gfx backend as gfx_backend
+// Conditionally compile the proper gfx backend as thermite_gfx_backend
 #[cfg(feature = "dx12")]
 use gfx_backend_dx12 as thermite_gfx_backend;
 // TODO: Configure HALState to accomodate gfx_backend_gl (no Instance)
@@ -17,6 +17,7 @@ use winit::{
     event_loop::ControlFlow,
 };
 
+mod thermite_core;
 mod thermite_gfx;
 use thermite_gfx::window::Window;
 

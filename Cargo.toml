@@ -18,6 +18,7 @@ walkdir = "*"
 shaderc = "0.6"
 
 [dependencies]
+thermite_core = { path = "thermite_core", version = "*" }
 log = "0.4.11"
 simple_logger = "1.6.0"
 winit = "0.22.2"

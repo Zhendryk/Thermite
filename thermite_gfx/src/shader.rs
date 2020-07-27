@@ -6,6 +6,8 @@ pub enum ShaderType {
     Spirv,
     GlslVert,
     GlslFrag,
+    HlslVert,
+    HlslFrag
 }
 
 // Shader types

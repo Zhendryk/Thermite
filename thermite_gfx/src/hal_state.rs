@@ -174,7 +174,7 @@ impl HALState {
         let (instance, surface, adapter) = {
             let instance =
                 ThermiteInstance::create("Thermite GFX", 1).expect("Backend not supported");
-            println!("SUPPORTED EXTENSIONS: {:?}", instance.extensions);
+            // println!("SUPPORTED EXTENSIONS: {:?}", instance.extensions);
             let surface = unsafe {
                 instance
                     .create_surface(window) // TODO: Check out why this gives UnsupportedWindowHandle for winit::window::Window?
@@ -270,8 +270,8 @@ impl HALState {
                 &logical_device,
                 &render_pass,
                 &pipeline_layout,
-                "p1.vert",
-                "p1.frag",
+                "p1.vert.spv",
+                "p1.frag.spv",
             )
         };
         let submission_complete_fence = logical_device.create_fence(true).expect("Out of memory");

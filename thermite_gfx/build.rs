@@ -6,7 +6,7 @@ use walkdir::{self, WalkDir};
 
 fn main() {
     // Tell the build script to only run again if we change our source shaders
-    println!("cargo:rerun-if-changed=assets/shaders");
+    println!("cargo:rerun-if-changed=assets/shaders/");
     // Grab our environment variables to we can place artifacts in the correct places
     // The directory where this build script places artifacts
     let out_dir = PathBuf::from(env::var("OUT_DIR").expect("Couldn't get OUT_DIR envVar"));
@@ -77,7 +77,7 @@ fn cross_compile_glsl_shaders_to_spirv() {
     fs::create_dir_all("assets/shaders/spirv_out").expect("Couldn't create SPIR-V output dir");
 
     // Loop over all glsl shaders to cross-compile them to spir-v format
-    for entry in fs::read_dir("assets/shaders").expect("Cannot read dir: assets/shaders") {
+    for entry in fs::read_dir("assets/shaders/glsl").expect("Cannot read dir: assets/shaders") {
         let entry: fs::DirEntry = entry.expect("Couldn't grab direntry");
         if entry
             .file_type()
@@ -129,4 +129,9 @@ fn cross_compile_glsl_shaders_to_spirv() {
             }
         }
     }
+}
+
+fn cross_compile_spirv_to_hlsl() {
+    use spirv_cross::{spirv, hlsl, msl, ErrorCode};
+    todo!();
 }

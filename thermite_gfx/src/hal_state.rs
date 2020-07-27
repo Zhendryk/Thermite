@@ -2,26 +2,168 @@ use crate::shader::Shader;
 use backend;
 use gfx_hal::{
     self,
+    adapter::Adapter,
     device::Device,
-    queue::family::QueueFamily,
-    window::{PresentationSurface, Surface},
-    Instance,
+    format::Format,
+    pso::{Rect, Viewport},
+    queue::{family::QueueFamily, QueueGroup},
+    window::{Extent2D, PresentationSurface, Surface},
+    Backend, Instance,
 };
 use raw_window_handle::HasRawWindowHandle;
 use std::mem::ManuallyDrop;
 use thermite_core::resources;
 
-pub struct HALResources<B: gfx_hal::Backend> {
-    pub instance: B::Instance,
-    pub surface: B::Surface,
-    pub logical_device: B::Device,
-    pub render_passes: Vec<B::RenderPass>,
-    pub pipeline_layouts: Vec<B::PipelineLayout>,
-    pub pipelines: Vec<B::GraphicsPipeline>,
-    pub command_pool: B::CommandPool,
-    pub command_buffer: B::CommandBuffer,
-    pub submission_complete_fence: B::Fence,
-    pub rendering_complete_semaphore: B::Semaphore,
+pub struct HALResources<B: Backend> {
+    instance: B::Instance,
+    surface: B::Surface,
+    adapter: Adapter<B>,
+    logical_device: B::Device,
+    queue_group: QueueGroup<backend::Backend>,
+    render_passes: Vec<B::RenderPass>,
+    pipeline_layouts: Vec<B::PipelineLayout>,
+    pipelines: Vec<B::GraphicsPipeline>,
+    command_pool: B::CommandPool,
+    command_buffer: B::CommandBuffer,
+    format: Format,
+    submission_complete_fence: B::Fence,
+    rendering_complete_semaphore: B::Semaphore,
+}
+
+// TODO: Error handling/propagation
+impl HALResources<backend::Backend> {
+    pub fn recreate_swapchain(&mut self, extent: Extent2D) -> Extent2D {
+        use gfx_hal::window::SwapchainConfig;
+        let capabilities = self.surface.capabilities(&self.adapter.physical_device);
+        let mut swapchain_config = SwapchainConfig::from_caps(&capabilities, self.format, extent);
+        // This seems to fix some fullscreen slowdown on macOS.
+        if capabilities.image_count.contains(&3) {
+            swapchain_config.image_count = 3;
+        }
+
+        let extent = swapchain_config.extent;
+
+        unsafe {
+            self.surface
+                .configure_swapchain(&self.logical_device, swapchain_config)
+                .expect("Failed to configure swapchain");
+        };
+        extent
+    }
+
+    pub unsafe fn reset_command_pool(&mut self, render_timeout_ns: u64) {
+        use gfx_hal::pool::CommandPool;
+        self.logical_device
+            .wait_for_fence(&self.submission_complete_fence, render_timeout_ns)
+            .expect("Out of memory or device lost");
+        self.logical_device
+            .reset_fence(&self.submission_complete_fence)
+            .expect("Out of memory");
+        self.command_pool.reset(false);
+    }
+
+    pub unsafe fn acquire_image(
+        &mut self,
+        acquire_timeout_ns: u64,
+    ) -> Result<
+        <<backend::Backend as Backend>::Surface as PresentationSurface<
+            backend::Backend,
+        >>::SwapchainImage,
+        bool,
+>{
+        match self.surface.acquire_image(acquire_timeout_ns) {
+            Ok((image, _)) => Ok(image),
+            Err(_) => Err(true),
+        }
+    }
+
+    pub unsafe fn create_framebuffer(
+        &self,
+        surface_image: &<<backend::Backend as Backend>::Surface as PresentationSurface<
+            backend::Backend,
+        >>::SwapchainImage,
+        surface_extent: Extent2D,
+    ) -> Result<<backend::Backend as Backend>::Framebuffer, &'static str> {
+        use gfx_hal::image::Extent;
+        use std::borrow::Borrow;
+        self.logical_device
+            .create_framebuffer(
+                &self.render_passes[0],
+                vec![surface_image.borrow()],
+                Extent {
+                    width: surface_extent.width,
+                    height: surface_extent.height,
+                    depth: 1,
+                },
+            )
+            .map_err(|_| "Out of memory")
+    }
+
+    pub fn viewport(&self, surface_extent: Extent2D) -> Viewport {
+        Viewport {
+            rect: Rect {
+                x: 0,
+                y: 0,
+                w: surface_extent.width as i16,
+                h: surface_extent.height as i16,
+            },
+            depth: 0.0..1.0,
+        }
+    }
+
+    pub unsafe fn record_cmds_for_submission(
+        &mut self,
+        framebuffer: &<backend::Backend as Backend>::Framebuffer,
+        viewport: &Viewport,
+    ) {
+        use gfx_hal::command::{
+            ClearColor, ClearValue, CommandBuffer, CommandBufferFlags, SubpassContents,
+        };
+        let render_pass = &self.render_passes[0];
+        let pipeline = &self.pipelines[0];
+        self.command_buffer
+            .begin_primary(CommandBufferFlags::ONE_TIME_SUBMIT);
+        self.command_buffer.set_viewports(0, &[viewport.clone()]);
+        self.command_buffer.set_scissors(0, &[viewport.rect]);
+        self.command_buffer.begin_render_pass(
+            render_pass,
+            &framebuffer,
+            viewport.rect,
+            &[ClearValue {
+                color: ClearColor {
+                    float32: [0.0, 0.0, 0.0, 1.0],
+                },
+            }],
+            SubpassContents::Inline,
+        );
+        self.command_buffer.bind_graphics_pipeline(pipeline);
+        self.command_buffer.draw(0..3, 0..1);
+        self.command_buffer.end_render_pass();
+        self.command_buffer.finish()
+    }
+
+    pub unsafe fn submit_cmds(
+        &mut self,
+        surface_image: <<backend::Backend as Backend>::Surface as PresentationSurface<
+            backend::Backend,
+        >>::SwapchainImage,
+        framebuffer: <backend::Backend as Backend>::Framebuffer,
+    ) -> bool {
+        use gfx_hal::queue::{CommandQueue, Submission};
+        let submission = Submission {
+            command_buffers: vec![&self.command_buffer],
+            wait_semaphores: None,
+            signal_semaphores: vec![&self.rendering_complete_semaphore],
+        };
+        self.queue_group.queues[0].submit(submission, Some(&self.submission_complete_fence));
+        let result = self.queue_group.queues[0].present_surface(
+            &mut self.surface,
+            surface_image,
+            Some(&self.rendering_complete_semaphore),
+        );
+        self.logical_device.destroy_framebuffer(framebuffer);
+        result.is_err()
+    }
 }
 
 pub struct HALState {
@@ -83,7 +225,7 @@ impl HALState {
             (command_pool, command_buffer)
         };
         let surface_color_format = {
-            use gfx_hal::format::{ChannelType, Format};
+            use gfx_hal::format::ChannelType;
             let supported_formats = surface
                 .supported_formats(&adapter.physical_device)
                 .unwrap_or(vec![]);
@@ -139,12 +281,15 @@ impl HALState {
             resources: ManuallyDrop::new(HALResources::<backend::Backend> {
                 instance: instance,
                 surface: surface,
+                adapter: adapter,
                 logical_device: logical_device,
+                queue_group: queue_group,
                 render_passes: vec![render_pass],
                 pipeline_layouts: vec![pipeline_layout],
                 pipelines: vec![pipeline],
                 command_pool: command_pool,
                 command_buffer: command_buffer,
+                format: surface_color_format,
                 submission_complete_fence: submission_complete_fence,
                 rendering_complete_semaphore: rendering_complete_semaphore,
             }),
@@ -226,9 +371,12 @@ impl Drop for HALState {
             let HALResources {
                 instance,
                 mut surface,
+                adapter,
                 logical_device,
+                queue_group,
                 command_pool,
                 command_buffer,
+                format,
                 render_passes,
                 pipeline_layouts,
                 pipelines,

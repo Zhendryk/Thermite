@@ -9,10 +9,11 @@ pub enum ShaderType {
 }
 
 // Shader types
+// TODO: Integrate GlslVert and GlslFrag into this
 const SHADER_EXT: [(&str, ShaderType); 1] = [(".spv", ShaderType::Spirv)];
 
 // Errors relating to `Shader`s and `ShaderProgram`s
-// TODO: impl Display for these
+// TODO: impl Display (and other useful derivations for an enum) for ShaderError
 #[derive(Debug)]
 pub enum ShaderError {
     ResourceLoadError {
@@ -35,6 +36,7 @@ pub enum ShaderError {
     },
 }
 
+// TODO: Docstrings, comments, maybe creating shader modules from this module?
 pub struct Shader {
     pub kind: ShaderType,
     pub id: Option<u32>,

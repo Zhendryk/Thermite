@@ -48,7 +48,7 @@ fn main() {
             },
             Event::MainEventsCleared => window.handle().request_redraw(),
             Event::RedrawRequested(_) => {
-                // TODO: perform rendering here
+                // NOTE: perform rendering here
                 unsafe {
                     hal_state.resources.reset_command_pool(1_000_000_000);
                 };

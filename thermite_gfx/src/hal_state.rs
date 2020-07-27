@@ -21,6 +21,7 @@ type ThermiteSwapchainImage =
     <<ThermiteBackend as Backend>::Surface as PresentationSurface<ThermiteBackend>>::SwapchainImage;
 type ThermiteFramebuffer = <ThermiteBackend as Backend>::Framebuffer;
 
+// TODO (HALResources): Error handling &| propagation, doc comments, general cleanup
 pub struct HALResources<B: Backend> {
     instance: B::Instance,
     surface: B::Surface,
@@ -37,7 +38,6 @@ pub struct HALResources<B: Backend> {
     rendering_complete_semaphore: B::Semaphore,
 }
 
-// TODO: Error handling/propagation
 impl HALResources<ThermiteBackend> {
     pub fn recreate_swapchain(&mut self, extent: Extent2D) -> Extent2D {
         use gfx_hal::window::SwapchainConfig;
@@ -164,6 +164,7 @@ impl HALResources<ThermiteBackend> {
     }
 }
 
+// TODO (HALState): Error handling &| propagation, doc comments, general cleanup, maybe some function separation
 pub struct HALState {
     pub resources: ManuallyDrop<HALResources<ThermiteBackend>>,
 }
@@ -175,7 +176,7 @@ impl HALState {
                 ThermiteInstance::create("Thermite GFX", 1).expect("Backend not supported");
             let surface = unsafe {
                 instance
-                    .create_surface(window)
+                    .create_surface(window) // TODO: Check out why this gives UnsupportedWindowHandle for winit::window::Window?
                     .expect("Failed to create surface for window")
             };
             let adapter = instance
@@ -296,6 +297,44 @@ impl HALState {
     }
 }
 
+// TODO: Ensure everything that needs to be dropped here is properly, and in the correct order
+impl Drop for HALState {
+    fn drop(&mut self) {
+        unsafe {
+            let HALResources {
+                instance,
+                mut surface,
+                adapter: _,
+                logical_device,
+                queue_group: _,
+                command_pool,
+                command_buffer: _,
+                format: _,
+                render_passes,
+                pipeline_layouts,
+                pipelines,
+                submission_complete_fence,
+                rendering_complete_semaphore,
+            } = ManuallyDrop::take(&mut self.resources);
+            logical_device.destroy_semaphore(rendering_complete_semaphore);
+            logical_device.destroy_fence(submission_complete_fence);
+            for pipeline in pipelines {
+                logical_device.destroy_graphics_pipeline(pipeline);
+            }
+            for pipeline_layout in pipeline_layouts {
+                logical_device.destroy_pipeline_layout(pipeline_layout);
+            }
+            for render_pass in render_passes {
+                logical_device.destroy_render_pass(render_pass);
+            }
+            logical_device.destroy_command_pool(command_pool);
+            surface.unconfigure_swapchain(&logical_device);
+            instance.destroy_surface(surface);
+        }
+    }
+}
+
+// TODO: Comments / docstrings
 unsafe fn make_pipeline<B: gfx_hal::Backend>(
     logical_device: &B::Device,
     render_pass: &B::RenderPass,
@@ -361,40 +400,4 @@ unsafe fn make_pipeline<B: gfx_hal::Backend>(
     logical_device.destroy_shader_module(fragment_shader_module);
 
     pipeline
-}
-
-impl Drop for HALState {
-    fn drop(&mut self) {
-        unsafe {
-            let HALResources {
-                instance,
-                mut surface,
-                adapter: _,
-                logical_device,
-                queue_group: _,
-                command_pool,
-                command_buffer: _,
-                format: _,
-                render_passes,
-                pipeline_layouts,
-                pipelines,
-                submission_complete_fence,
-                rendering_complete_semaphore,
-            } = ManuallyDrop::take(&mut self.resources);
-            logical_device.destroy_semaphore(rendering_complete_semaphore);
-            logical_device.destroy_fence(submission_complete_fence);
-            for pipeline in pipelines {
-                logical_device.destroy_graphics_pipeline(pipeline);
-            }
-            for pipeline_layout in pipeline_layouts {
-                logical_device.destroy_pipeline_layout(pipeline_layout);
-            }
-            for render_pass in render_passes {
-                logical_device.destroy_render_pass(render_pass);
-            }
-            logical_device.destroy_command_pool(command_pool);
-            surface.unconfigure_swapchain(&logical_device);
-            instance.destroy_surface(surface);
-        }
-    }
 }

@@ -17,6 +17,10 @@ pub struct Window {
     should_close: bool,
 }
 
+// TODO: Try and see if we can encapsulate user input related to the window into
+//       some function which accepts a map of input->callback or something..., that
+//       way we don't need a huge input loop in our main.rs.
+// TODO (cont.): See if ^^ this can also apply to the event loop
 impl Window {
     /// Constructs a new `Window` with the given `title` and `size`.
     ///

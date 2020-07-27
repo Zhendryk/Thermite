@@ -17,7 +17,7 @@ use thermite_core::resources;
 // TODO: Simplify these horrendous <backend::Backend as Backend>::* types...
 type ThermiteBackend = backend::Backend;
 type ThermiteInstance = backend::Instance;
-type ThermiteSwapchainImg =
+type ThermiteSwapchainImage =
     <<ThermiteBackend as Backend>::Surface as PresentationSurface<ThermiteBackend>>::SwapchainImage;
 type ThermiteFramebuffer = <ThermiteBackend as Backend>::Framebuffer;
 
@@ -72,7 +72,7 @@ impl HALResources<ThermiteBackend> {
     pub unsafe fn acquire_image(
         &mut self,
         acquire_timeout_ns: u64,
-    ) -> Result<ThermiteSwapchainImg, bool> {
+    ) -> Result<ThermiteSwapchainImage, bool> {
         match self.surface.acquire_image(acquire_timeout_ns) {
             Ok((image, _)) => Ok(image),
             Err(_) => Err(true),
@@ -81,7 +81,7 @@ impl HALResources<ThermiteBackend> {
 
     pub unsafe fn create_framebuffer(
         &self,
-        surface_image: &ThermiteSwapchainImg,
+        surface_image: &ThermiteSwapchainImage,
         surface_extent: Extent2D,
     ) -> Result<ThermiteFramebuffer, &'static str> {
         use gfx_hal::image::Extent;
@@ -144,7 +144,7 @@ impl HALResources<ThermiteBackend> {
 
     pub unsafe fn submit_cmds(
         &mut self,
-        surface_image: ThermiteSwapchainImg,
+        surface_image: ThermiteSwapchainImage,
         framebuffer: ThermiteFramebuffer,
     ) -> bool {
         use gfx_hal::queue::{CommandQueue, Submission};

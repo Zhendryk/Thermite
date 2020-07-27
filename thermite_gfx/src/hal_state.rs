@@ -174,6 +174,7 @@ impl HALState {
         let (instance, surface, adapter) = {
             let instance =
                 ThermiteInstance::create("Thermite GFX", 1).expect("Backend not supported");
+            println!("SUPPORTED EXTENSIONS: {:?}", instance.extensions);
             let surface = unsafe {
                 instance
                     .create_surface(window) // TODO: Check out why this gives UnsupportedWindowHandle for winit::window::Window?

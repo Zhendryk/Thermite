@@ -1,4 +1,5 @@
 use shaderc;
+use spirv_cross::{hlsl, msl, spirv, ErrorCode};
 use std::env;
 use std::fs::{self, DirBuilder};
 use std::path::{Path, PathBuf};
@@ -16,7 +17,7 @@ fn main() {
     );
 
     // Since we already fenced this build script to run only if changes to shaders are made, we can always run this
-    cross_compile_glsl_shaders_to_spirv_and_hlsl();
+    cross_compile_glsl_shaders();
 
     // Locate executable path even if the project is in workspace
     let executable_path = locate_target_dir_from_output_dir(&out_dir)
@@ -67,21 +68,23 @@ fn copy(from: &Path, to: &Path) {
     }
 }
 
-fn cross_compile_glsl_shaders_to_spirv_and_hlsl() {
+fn cross_compile_glsl_shaders() {
     // Create our shader cross-compiler
-    let mut compiler = shaderc::Compiler::new().expect("Could not create glsl->spirv compiler");
+    let mut compiler = shaderc::Compiler::new().expect("Could not create GLSL -> SPIR-V compiler");
     let options =
-        shaderc::CompileOptions::new().expect("Could not create glsl->spirv compiler options"); // Can alter compiler options here
+        shaderc::CompileOptions::new().expect("Could not create GLSL -> SPIR-V compiler options"); // Can alter compiler options here
 
     // Create a glsl->spirv destination path if neccessary
     fs::create_dir_all("assets/shaders/spirv").expect("Couldn't create SPIR-V output dir");
     // Create a spirv->hlsl destination path if neccessary
     fs::create_dir_all("assets/shaders/hlsl").expect("Couldn't create HLSL output dir");
+    // Create a spirv->msl destination path if neccessary
+    fs::create_dir_all("assets/shaders/metal").expect("Couldn't create Metal output dir");
 
     // Loop over all glsl shaders to cross-compile them to spir-v format
     for entry in fs::read_dir("assets/shaders/glsl").expect("Cannot read dir: assets/shaders/glsl")
     {
-        let entry: fs::DirEntry = entry.expect("Couldn't grab direntry");
+        let entry: fs::DirEntry = entry.expect("Couldn't grab DirEntry");
         if entry
             .file_type()
             .expect("Could not get file type, probably a symlink")
@@ -97,6 +100,7 @@ fn cross_compile_glsl_shaders_to_spirv_and_hlsl() {
                     .and_then(|ext| match ext.to_string_lossy().as_ref() {
                         "vert" => Some(shaderc::ShaderKind::Vertex),
                         "frag" => Some(shaderc::ShaderKind::Fragment),
+                        // TODO: Others?
                         _ => None,
                     });
             if let Some(shader_type) = shader_type {
@@ -122,8 +126,10 @@ fn cross_compile_glsl_shaders_to_spirv_and_hlsl() {
                         let out_path = format!("assets/shaders/spirv/{}.spv", filename);
                         fs::write(&out_path, &compiled_bytes)
                             .expect("Couldn't write compiled SPIR-V shader to output dir");
-                        // Now SPIR-V -> HLSL
-                        create_hlsl_from_compiled_spirv(&filename, compiled_spirv);
+                        // Now SPIR-V -> HLSL + MSL
+                        let spirv_module = spirv::Module::from_words(compiled_spirv.as_binary());
+                        create_hlsl_from_compiled_spirv(&filename, &spirv_module);
+                        create_msl_from_compiled_spirv(&filename, &spirv_module);
                     }
                     Result::Err(err) => {
                         panic!(
@@ -137,11 +143,10 @@ fn cross_compile_glsl_shaders_to_spirv_and_hlsl() {
     }
 }
 
-fn create_hlsl_from_compiled_spirv(filename: &str, compiled_spirv: shaderc::CompilationArtifact) {
-    use spirv_cross::{hlsl, msl, spirv, ErrorCode};
-    let spirv_module = spirv::Module::from_words(compiled_spirv.as_binary());
+/// Creates an equivalent .hlsl (DirectX) shader file from a compiled SPIR-V shader
+fn create_hlsl_from_compiled_spirv(filename: &str, spirv_module: &spirv::Module) {
     let mut abstract_syntax_tree = spirv::Ast::<hlsl::Target>::parse(&spirv_module)
-        .expect("Couldn't parse abstract syntax tree from SPIR-V module");
+        .expect("Couldn't parse abstract syntax tree (HLSL target) from SPIR-V module");
     let hlsl_output = abstract_syntax_tree
         .compile()
         .expect("Couldn't compile SPIR-V abstract syntax tree to HLSL");
@@ -150,4 +155,18 @@ fn create_hlsl_from_compiled_spirv(filename: &str, compiled_spirv: shaderc::Comp
     let mut hlsl_file_out = File::create(format!("assets/shaders/hlsl/{}.hlsl", filename))
         .expect("Couldn't create new HLSL file");
     hlsl_file_out.write_all(hlsl_output.as_bytes());
+}
+
+/// Creates an equivalent .metal (macOS) shader file from a compiled SPIR-V shader
+fn create_msl_from_compiled_spirv(filename: &str, spirv_module: &spirv::Module) {
+    let mut abstract_syntax_tree = spirv::Ast::<msl::Target>::parse(&spirv_module)
+        .expect("Couldn't parse abstract syntax tree (Metal target) from SPIR-V module");
+    let msl_output = abstract_syntax_tree
+        .compile()
+        .expect("Couldn't compile SPIR-V abstract syntax tree to Metal");
+    use std::fs::File;
+    use std::io::prelude::*;
+    let mut msl_file_out = File::create(format!("assets/shaders/metal/{}.metal", filename))
+        .expect("Couldn't create new Metal file");
+    msl_file_out.write_all(msl_output.as_bytes());
 }

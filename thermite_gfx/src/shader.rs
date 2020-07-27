@@ -7,7 +7,7 @@ pub enum ShaderType {
     GlslVert,
     GlslFrag,
     HlslVert,
-    HlslFrag
+    HlslPix, // HLSL Pixel Shader == GLSL/Vulkan Fragment Shader
 }
 
 // Shader types

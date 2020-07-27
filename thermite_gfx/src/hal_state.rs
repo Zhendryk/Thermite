@@ -14,12 +14,19 @@ use raw_window_handle::HasRawWindowHandle;
 use std::mem::ManuallyDrop;
 use thermite_core::resources;
 
+// TODO: Simplify these horrendous <backend::Backend as Backend>::* types...
+type ThermiteBackend = backend::Backend;
+type ThermiteInstance = backend::Instance;
+type ThermiteSwapchainImg =
+    <<ThermiteBackend as Backend>::Surface as PresentationSurface<ThermiteBackend>>::SwapchainImage;
+type ThermiteFramebuffer = <ThermiteBackend as Backend>::Framebuffer;
+
 pub struct HALResources<B: Backend> {
     instance: B::Instance,
     surface: B::Surface,
     adapter: Adapter<B>,
     logical_device: B::Device,
-    queue_group: QueueGroup<backend::Backend>,
+    queue_group: QueueGroup<ThermiteBackend>,
     render_passes: Vec<B::RenderPass>,
     pipeline_layouts: Vec<B::PipelineLayout>,
     pipelines: Vec<B::GraphicsPipeline>,
@@ -31,7 +38,7 @@ pub struct HALResources<B: Backend> {
 }
 
 // TODO: Error handling/propagation
-impl HALResources<backend::Backend> {
+impl HALResources<ThermiteBackend> {
     pub fn recreate_swapchain(&mut self, extent: Extent2D) -> Extent2D {
         use gfx_hal::window::SwapchainConfig;
         let capabilities = self.surface.capabilities(&self.adapter.physical_device);
@@ -65,12 +72,7 @@ impl HALResources<backend::Backend> {
     pub unsafe fn acquire_image(
         &mut self,
         acquire_timeout_ns: u64,
-    ) -> Result<
-        <<backend::Backend as Backend>::Surface as PresentationSurface<
-            backend::Backend,
-        >>::SwapchainImage,
-        bool,
->{
+    ) -> Result<ThermiteSwapchainImg, bool> {
         match self.surface.acquire_image(acquire_timeout_ns) {
             Ok((image, _)) => Ok(image),
             Err(_) => Err(true),
@@ -79,11 +81,9 @@ impl HALResources<backend::Backend> {
 
     pub unsafe fn create_framebuffer(
         &self,
-        surface_image: &<<backend::Backend as Backend>::Surface as PresentationSurface<
-            backend::Backend,
-        >>::SwapchainImage,
+        surface_image: &ThermiteSwapchainImg,
         surface_extent: Extent2D,
-    ) -> Result<<backend::Backend as Backend>::Framebuffer, &'static str> {
+    ) -> Result<ThermiteFramebuffer, &'static str> {
         use gfx_hal::image::Extent;
         use std::borrow::Borrow;
         self.logical_device
@@ -113,7 +113,7 @@ impl HALResources<backend::Backend> {
 
     pub unsafe fn record_cmds_for_submission(
         &mut self,
-        framebuffer: &<backend::Backend as Backend>::Framebuffer,
+        framebuffer: &ThermiteFramebuffer,
         viewport: &Viewport,
     ) {
         use gfx_hal::command::{
@@ -144,10 +144,8 @@ impl HALResources<backend::Backend> {
 
     pub unsafe fn submit_cmds(
         &mut self,
-        surface_image: <<backend::Backend as Backend>::Surface as PresentationSurface<
-            backend::Backend,
-        >>::SwapchainImage,
-        framebuffer: <backend::Backend as Backend>::Framebuffer,
+        surface_image: ThermiteSwapchainImg,
+        framebuffer: ThermiteFramebuffer,
     ) -> bool {
         use gfx_hal::queue::{CommandQueue, Submission};
         let submission = Submission {
@@ -167,14 +165,14 @@ impl HALResources<backend::Backend> {
 }
 
 pub struct HALState {
-    pub resources: ManuallyDrop<HALResources<backend::Backend>>,
+    pub resources: ManuallyDrop<HALResources<ThermiteBackend>>,
 }
 
 impl HALState {
     pub fn new(window: &impl HasRawWindowHandle) -> Result<Self, &'static str> {
         let (instance, surface, adapter) = {
             let instance =
-                backend::Instance::create("Thermite GFX", 1).expect("Backend not supported");
+                ThermiteInstance::create("Thermite GFX", 1).expect("Backend not supported");
             let surface = unsafe {
                 instance
                     .create_surface(window)
@@ -266,7 +264,7 @@ impl HALState {
                 .expect("Out of memory")
         };
         let pipeline = unsafe {
-            make_pipeline::<backend::Backend>(
+            make_pipeline::<ThermiteBackend>(
                 &logical_device,
                 &render_pass,
                 &pipeline_layout,
@@ -278,7 +276,7 @@ impl HALState {
         let rendering_complete_semaphore =
             logical_device.create_semaphore().expect("Out of memory");
         let hal_state = HALState {
-            resources: ManuallyDrop::new(HALResources::<backend::Backend> {
+            resources: ManuallyDrop::new(HALResources::<ThermiteBackend> {
                 instance: instance,
                 surface: surface,
                 adapter: adapter,
@@ -371,12 +369,12 @@ impl Drop for HALState {
             let HALResources {
                 instance,
                 mut surface,
-                adapter,
+                adapter: _,
                 logical_device,
-                queue_group,
+                queue_group: _,
                 command_pool,
-                command_buffer,
-                format,
+                command_buffer: _,
+                format: _,
                 render_passes,
                 pipeline_layouts,
                 pipelines,

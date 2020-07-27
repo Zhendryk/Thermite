@@ -1,5 +1,4 @@
 // Re-export gfx_hal to be used by clients of thermite_gfx
-pub use backend;
 pub use gfx_hal;
 
 // thermite_gfx modules

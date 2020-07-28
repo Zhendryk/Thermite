@@ -392,32 +392,31 @@ unsafe fn make_pipeline<ThermiteBackend>(
         GraphicsShaderSet, Primitive, Rasterizer, ShaderStageFlags, Specialization,
     };
     let shader_res = resources::Resource::new(std::path::Path::new("assets/shaders/spirv"))
-        .map_err(|e| HALError::ShaderError {
+        .map_err(|_| HALError::ShaderError {
             message: String::from("Couldn't open shader resource"),
         })?;
-    let vs =
-        Shader::new(&shader_res, vertex_shader, ShaderStageFlags::VERTEX, "main").map_err(|e| {
-            HALError::ShaderError {
-                message: String::from("Couldn't create vertex shader"),
-            }
-        })?;
-    let vertex_shader_module = vs
-        .module::<ThermiteGfx::Backend>(&logical_device)
-        .map_err(|e| HALError::ShaderError {
-            message: String::from("Couldn't load vertex shader module"),
-        })?;
+    let vs = Shader::new(&shader_res, vertex_shader, ShaderStageFlags::VERTEX, "main").map_err(
+        |_| HALError::ShaderError {
+            message: String::from("Couldn't create vertex shader"),
+        },
+    )?;
+    let vertex_shader_module =
+        vs.module::<ThermiteGfx::Backend>(&logical_device)
+            .map_err(|_| HALError::ShaderError {
+                message: String::from("Couldn't load vertex shader module"),
+            })?;
     let fs = Shader::new(
         &shader_res,
         fragment_shader,
         ShaderStageFlags::FRAGMENT,
         "main",
     )
-    .map_err(|e| HALError::ShaderError {
+    .map_err(|_| HALError::ShaderError {
         message: String::from("Couldn't create fragment shader"),
     })?;
     let fragment_shader_module =
         fs.module::<ThermiteGfx::Backend>(&logical_device)
-            .map_err(|e| HALError::ShaderError {
+            .map_err(|_| HALError::ShaderError {
                 message: String::from("Couldn't load fragment shader module"),
             })?;
     let (vs_entry, fs_entry) = (
@@ -456,7 +455,13 @@ unsafe fn make_pipeline<ThermiteBackend>(
         mask: ColorMask::ALL,
         blend: Some(BlendState::ALPHA),
     });
-    // TODO: Failing at gfx_backend_dx12::device::2058 Drect3D Error 80070057 (Invalid Parameter)
+    // TODO: Failing at gfx_backend_dx12::device::2058 Direct3D Error 80070057 (Invalid Parameter)
+    /* ERROR MESSAGE FROM DEBUGGING (F5)
+        D3D12 ERROR: ID3D12Device::CreateGraphicsPipelineState: The Vertex Shader expects application
+        provided input data (which is to say data other than hardware auto-generated values such as VertexID or InstanceID).
+        Therefore an Input Assembler object is expected, but none is bound.
+        [ STATE_CREATION ERROR #658: CREATEGRAPHICSPIPELINESTATE_INPUTLAYOUT_NOT_SET]
+    */
     let pipeline = logical_device
         .create_graphics_pipeline(&pipeline_desc, None)
         .map_err(|e| HALError::PipelineError { inner: e })?;

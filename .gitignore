@@ -11,7 +11,8 @@ Cargo.lock
 **/*.rs.bk
 
 # Vscode
-.vscode
+.vscode/*
+!.vscode/launch.json
 
 # Misc
 **/spirv_out

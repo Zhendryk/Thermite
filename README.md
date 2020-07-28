@@ -1,4 +1,4 @@
-# ![Thermite Icon](assets/icon.png) Thermite
+# <img src="assets/icon.png" width="50" height="50"> Thermite
 > Game development engine, written in Rust.
 
 

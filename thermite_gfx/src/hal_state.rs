@@ -10,7 +10,9 @@ use gfx_hal::{
     format::Format,
     pso::{Rect, Viewport},
     queue::{family::QueueFamily, QueueGroup},
-    window::{CreationError, Extent2D, PresentationSurface, Surface, SwapchainConfig},
+    window::{
+        AcquireError, CreationError, Extent2D, PresentationSurface, Surface, SwapchainConfig,
+    },
     Backend, Instance,
 };
 use raw_window_handle::HasRawWindowHandle;
@@ -21,7 +23,6 @@ use thermite_core::resources;
 type ThermiteRenderPass = <ThermiteBackend as Backend>::RenderPass;
 type ThermitePipelineLayout = <ThermiteBackend as Backend>::PipelineLayout;
 type ThermiteGraphicsPipeline = <ThermiteBackend as Backend>::GraphicsPipeline;
-// type ThermiteShaderModule = <ThermiteBackend as Backend>::ShaderModule;
 type ThermiteSwapchainImage =
     <<ThermiteBackend as Backend>::Surface as PresentationSurface<ThermiteBackend>>::SwapchainImage;
 type ThermiteFramebuffer = <ThermiteBackend as Backend>::Framebuffer;
@@ -77,11 +78,9 @@ impl HALResources<ThermiteBackend> {
     pub unsafe fn acquire_image(
         &mut self,
         acquire_timeout_ns: u64,
-    ) -> Result<ThermiteSwapchainImage, bool> {
-        match self.surface.acquire_image(acquire_timeout_ns) {
-            Ok((image, _)) => Ok(image),
-            Err(_) => Err(true),
-        }
+    ) -> Result<ThermiteSwapchainImage, AcquireError> {
+        // Map the result tuple to just the swapchain image, because that's what we want
+        self.surface.acquire_image(acquire_timeout_ns).map(|v| v.0)
     }
 
     pub unsafe fn create_framebuffer(
@@ -91,8 +90,9 @@ impl HALResources<ThermiteBackend> {
     ) -> Result<ThermiteFramebuffer, OutOfMemory> {
         use gfx_hal::image::Extent;
         use std::borrow::Borrow;
+        let render_pass = &self.render_passes[0];
         self.logical_device.create_framebuffer(
-            &self.render_passes[0],
+            render_pass,
             vec![surface_image.borrow()],
             Extent {
                 width: surface_extent.width,
@@ -162,7 +162,6 @@ impl HALResources<ThermiteBackend> {
             surface_image,
             Some(&self.rendering_complete_semaphore),
         );
-        // self.logical_device.destroy_framebuffer(framebuffer);
         result.is_err()
     }
 
@@ -202,7 +201,6 @@ impl HALState {
         let (instance, surface, adapter) = {
             let instance = ThermiteInstance::create("Thermite GFX", 1)
                 .map_err(|_| HALError::UnsupportedBackend)?;
-            // println!("SUPPORTED EXTENSIONS: {:?}", instance.extensions);
             let surface = unsafe {
                 instance
                     .create_surface(window)
@@ -251,15 +249,13 @@ impl HALState {
                 })?,
             )
         };
-        let (command_pool, command_buffer) = {
+        let (command_pool, command_buffer) = unsafe {
             use gfx_hal::command::Level;
             use gfx_hal::pool::{CommandPool, CommandPoolCreateFlags};
-            let mut command_pool = unsafe {
-                logical_device
-                    .create_command_pool(queue_group.family, CommandPoolCreateFlags::empty())
-                    .map_err(|e| HALError::OutOfMemory { inner: e })?
-            };
-            let command_buffer = unsafe { command_pool.allocate_one(Level::Primary) };
+            let mut command_pool = logical_device
+                .create_command_pool(queue_group.family, CommandPoolCreateFlags::empty())
+                .map_err(|e| HALError::OutOfMemory { inner: e })?;
+            let command_buffer = command_pool.allocate_one(Level::Primary);
             (command_pool, command_buffer)
         };
         let surface_color_format = {
@@ -361,6 +357,7 @@ impl Drop for HALState {
             logical_device.destroy_semaphore(rendering_complete_semaphore);
             logical_device.destroy_fence(submission_complete_fence);
             for pipeline in pipelines {
+                // TODO: See why this results in an Access Violation upon closing the window...
                 logical_device.destroy_graphics_pipeline(pipeline);
             }
             for pipeline_layout in pipeline_layouts {
@@ -376,12 +373,6 @@ impl Drop for HALState {
     }
 }
 
-// #[cfg(windows)]
-// const SHADER_RES: &str = "assets/shaders/hlsl";
-// #[cfg(all(unix, not(target_os = "macos")))]
-// const SHADER_RES: &str = "assets/shaders/spirv";
-// #[cfg(target_os = "macos")]
-// const SHADER_RES: &str = "assets/shaders/metal";
 // TODO: Comments / docstrings
 unsafe fn make_pipeline<ThermiteBackend>(
     logical_device: &ThermiteDevice,
@@ -393,7 +384,7 @@ unsafe fn make_pipeline<ThermiteBackend>(
     use gfx_hal::pass::Subpass;
     use gfx_hal::pso::{
         BlendState, ColorBlendDesc, ColorMask, EntryPoint, Face, GraphicsPipelineDesc,
-        GraphicsShaderSet, Primitive, Rasterizer, ShaderStageFlags, Specialization,
+        GraphicsShaderSet, PolygonMode, Primitive, Rasterizer, ShaderStageFlags, Specialization,
     };
     let shader_res = resources::Resource::new(std::path::Path::new("assets/shaders/spirv"))
         .map_err(|_| HALError::ShaderError {
@@ -446,7 +437,8 @@ unsafe fn make_pipeline<ThermiteBackend>(
         shader_entries,
         Primitive::TriangleList,
         Rasterizer {
-            cull_face: Face::BACK,
+            polygon_mode: PolygonMode::Line,
+            cull_face: Face::NONE,
             ..Rasterizer::FILL
         },
         pipeline_layout,

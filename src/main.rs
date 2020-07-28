@@ -63,14 +63,13 @@ fn main() {
                     should_configure_swapchain = false;
                 }
                 let surface_image = unsafe {
-                    hal_state
-                        .resources
-                        .acquire_image(1_000_000_000)
-                        .map_err(|e| {
-                            should_configure_swapchain = e;
+                    match hal_state.resources.acquire_image(1_000_000_000) {
+                        Ok(image) => image,
+                        Err(_) => {
+                            should_configure_swapchain = true;
                             return;
-                        })
-                        .expect("Couldn't acquire surface image")
+                        }
+                    }
                 };
                 let framebuffer = unsafe {
                     hal_state

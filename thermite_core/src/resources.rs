@@ -94,6 +94,22 @@ impl Resource {
         Ok(cstr)
     }
 
+    /// Load the given file inside this `Resource`'s root path and return the data as a `String`.
+    ///
+    /// ### Parameters
+    ///
+    /// - `resource_name`: The filename of the resource to load into memory.
+    ///
+    /// ### Returns
+    ///
+    /// A `Result` which is:
+    ///
+    /// - `Ok`: A `String` containing the utf-8 data of the resource file in question.
+    /// - `Err`: A `ResourceError` describing the various IO errors that may have occurred during loading of the resource file.
+    pub fn load_to_string(&self, resource_name: &str) -> Result<String, ResourceError> {
+        Ok(fs::read_to_string(self.path_for(resource_name))?)
+    }
+
     /// Returns a `PathBuf` representing the full path to the given resource.
     pub fn path_for(&self, resource_name: &str) -> PathBuf {
         let mut path = PathBuf::from(&self.root_path);

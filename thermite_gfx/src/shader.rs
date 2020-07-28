@@ -45,7 +45,8 @@ pub enum ShaderError {
 pub struct Shader {
     pub kind: ShaderType,
     pub stage: gfx_hal::pso::Stage,
-    pub data: Option<Vec<u32>>,
+    pub src: Option<Vec<u8>>,   // Other formats
+    pub data: Option<Vec<u32>>, // For SPIR-V
 }
 
 impl Shader {
@@ -74,7 +75,22 @@ impl Shader {
                 Ok(Shader {
                     kind: shader_type,
                     stage: stage,
+                    src: None,
                     data: Option::from(spirv),
+                })
+            }
+            ShaderType::Hlsl => {
+                let hlsl_src =
+                    res.load_to_bytes(filename)
+                        .map_err(|e| ShaderError::ResourceLoadError {
+                            name: filename.into(),
+                            inner: e,
+                        })?;
+                Ok(Shader {
+                    kind: shader_type,
+                    stage: stage,
+                    src: Option::from(hlsl_src),
+                    data: None,
                 })
             }
             _ => Err(ShaderError::UnsupportedShaderType {

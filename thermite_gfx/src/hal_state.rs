@@ -3,7 +3,7 @@ use backend;
 use gfx_hal::{
     self,
     adapter::Adapter,
-    device::Device,
+    device::{Device, ShaderError},
     format::Format,
     pso::{Rect, Viewport},
     queue::{family::QueueFamily, QueueGroup},
@@ -17,6 +17,11 @@ use thermite_core::resources;
 // TODO: Simplify these horrendous <backend::Backend as Backend>::* types...
 type ThermiteBackend = backend::Backend;
 type ThermiteInstance = backend::Instance;
+type ThermiteDevice = backend::Device;
+type ThermiteRenderPass = <ThermiteBackend as Backend>::RenderPass;
+type ThermitePipelineLayout = <ThermiteBackend as Backend>::PipelineLayout;
+type ThermiteGraphicsPipeline = <ThermiteBackend as Backend>::GraphicsPipeline;
+type ThermiteShaderModule = <ThermiteBackend as Backend>::ShaderModule;
 type ThermiteSwapchainImage =
     <<ThermiteBackend as Backend>::Surface as PresentationSurface<ThermiteBackend>>::SwapchainImage;
 type ThermiteFramebuffer = <ThermiteBackend as Backend>::Framebuffer;
@@ -335,31 +340,42 @@ impl Drop for HALState {
     }
 }
 
+#[cfg(windows)]
+const SHADER_RES: &str = "assets/shaders/hlsl";
+#[cfg(all(unix, not(target_os = "macos")))]
+const SHADER_RES: &str = "assets/shaders/spirv";
+#[cfg(target_os = "macos")]
+const SHADER_RES: &str = "assets/shaders/metal";
+
 // TODO: Comments / docstrings
-unsafe fn make_pipeline<B: gfx_hal::Backend>(
-    logical_device: &B::Device,
-    render_pass: &B::RenderPass,
-    pipeline_layout: &B::PipelineLayout,
+unsafe fn make_pipeline<ThermiteBackend>(
+    logical_device: &ThermiteDevice,
+    render_pass: &ThermiteRenderPass,
+    pipeline_layout: &ThermitePipelineLayout,
     vertex_shader: &str,
     fragment_shader: &str,
-) -> B::GraphicsPipeline {
+) -> ThermiteGraphicsPipeline {
     use gfx_hal::pass::Subpass;
     use gfx_hal::pso::{
         BlendState, ColorBlendDesc, ColorMask, EntryPoint, Face, GraphicsPipelineDesc,
         GraphicsShaderSet, Primitive, Rasterizer, Specialization, Stage,
     };
-    let shader_res = resources::Resource::new(std::path::Path::new("assets/shaders/spirv"))
+    let shader_res = resources::Resource::new(std::path::Path::new(SHADER_RES))
         .expect("Couldn't open shader resource");
     let vs = Shader::new(&shader_res, vertex_shader, Stage::Vertex)
         .expect("Couldn't create vertex shader");
-    let vertex_shader_module = logical_device
-        .create_shader_module(&vs.data.expect("Couldn't get vertex shader data"))
-        .expect("Couldn't load vertex shader module");
+    let vertex_shader_module =
+        create_shader_module(&vs, &logical_device).expect("Couldn't load vertex shader module");
+    // let vertex_shader_module = logical_device
+    //     .create_shader_module(&vs.data.expect("Couldn't get vertex shader data"))
+    //     .expect("Couldn't load vertex shader module");
     let fs = Shader::new(&shader_res, fragment_shader, Stage::Fragment)
         .expect("Couldn't create fragment shader");
-    let fragment_shader_module = logical_device
-        .create_shader_module(&fs.data.expect("Couldn't get fragment shader data"))
-        .expect("Couldn't load fragment shader module");
+    let fragment_shader_module =
+        create_shader_module(&fs, &logical_device).expect("Couldn't load fragment shader module");
+    // let fragment_shader_module = logical_device
+    //     .create_shader_module(&fs.data.expect("Couldn't get fragment shader data"))
+    //     .expect("Couldn't load fragment shader module");
     let (vs_entry, fs_entry) = (
         EntryPoint {
             entry: "main",
@@ -403,4 +419,38 @@ unsafe fn make_pipeline<B: gfx_hal::Backend>(
     logical_device.destroy_shader_module(fragment_shader_module);
 
     pipeline
+}
+
+#[cfg(windows)]
+unsafe fn create_shader_module(
+    shader: &Shader,
+    logical_device: &ThermiteDevice,
+) -> Result<ThermiteShaderModule, ShaderError> {
+    logical_device.create_shader_module_from_source(
+        shader.stage,
+        "main",
+        "main",
+        shader.src.expect("Couldn't get shader source code"),
+    )?
+}
+
+#[cfg(all(unix, not(target_os = "macos")))]
+unsafe fn create_shader_module(
+    shader: &Shader,
+    logical_device: &ThermiteDevice,
+) -> Result<ThermiteShaderModule, ShaderError> {
+    logical_device.create_shader_module(
+        &shader
+            .data
+            .as_ref()
+            .expect("Couldn't get shader spirv data"),
+    )
+}
+
+#[cfg(target_os = "macos")]
+unsafe fn create_shader_module(
+    shader: &Shader,
+    logical_device: &ThermiteDevice,
+) -> Result<ThermiteShaderModule, ShaderError> {
+    todo!()
 }

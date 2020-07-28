@@ -1,5 +1,8 @@
 use crate::shader::Shader;
-use backend;
+use backend::{
+    self as ThermiteGfx, Backend as ThermiteBackend, Device as ThermiteDevice,
+    Instance as ThermiteInstance,
+};
 use gfx_hal::{
     self,
     adapter::Adapter,
@@ -15,9 +18,6 @@ use std::mem::ManuallyDrop;
 use thermite_core::resources;
 
 // TODO: Simplify these horrendous <backend::Backend as Backend>::* types...
-type ThermiteBackend = backend::Backend;
-type ThermiteInstance = backend::Instance;
-type ThermiteDevice = backend::Device;
 type ThermiteRenderPass = <ThermiteBackend as Backend>::RenderPass;
 type ThermitePipelineLayout = <ThermiteBackend as Backend>::PipelineLayout;
 type ThermiteGraphicsPipeline = <ThermiteBackend as Backend>::GraphicsPipeline;
@@ -364,7 +364,7 @@ unsafe fn make_pipeline<ThermiteBackend>(
     let vs = Shader::new(&shader_res, vertex_shader, ShaderStageFlags::VERTEX, "main")
         .expect("Couldn't create vertex shader");
     let vertex_shader_module = vs
-        .module::<backend::Backend>(&logical_device)
+        .module::<ThermiteGfx::Backend>(&logical_device)
         .expect("Couldn't load vertex shader module");
     let fs = Shader::new(
         &shader_res,
@@ -374,7 +374,7 @@ unsafe fn make_pipeline<ThermiteBackend>(
     )
     .expect("Couldn't create fragment shader");
     let fragment_shader_module = fs
-        .module::<backend::Backend>(&logical_device)
+        .module::<ThermiteGfx::Backend>(&logical_device)
         .expect("Couldn't load fragment shader module");
     let (vs_entry, fs_entry) = (
         EntryPoint {
@@ -413,7 +413,8 @@ unsafe fn make_pipeline<ThermiteBackend>(
         blend: Some(BlendState::ALPHA),
     });
     let pipeline = logical_device
-        .create_graphics_pipeline(&pipeline_desc, None) // TODO: Failing at gfx_backend_dx12::device::2058
+        .create_graphics_pipeline(&pipeline_desc, None) // TODO: Failing at gfx_backend_dx12::device::2058 Drect3D Error 80070057 (Invalid Parameter)
+        .map_err(|e| println!("{:?}", e))
         .expect("Failed to create graphics pipeline!");
     logical_device.destroy_shader_module(vertex_shader_module);
     logical_device.destroy_shader_module(fragment_shader_module);

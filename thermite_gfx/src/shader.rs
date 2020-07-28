@@ -1,18 +1,21 @@
-use gfx_hal;
+use gfx_hal::{self, pso::Stage};
 use thermite_core::resources;
 
 #[derive(Debug, Copy, Clone)]
 pub enum ShaderType {
     Spirv,
-    GlslVert,
-    GlslFrag,
-    HlslVert,
-    HlslPix, // HLSL Pixel Shader == GLSL/Vulkan Fragment Shader
+    Glsl,
+    Hlsl,
+    Metal,
 }
 
 // Shader types
-// TODO: Integrate GlslVert and GlslFrag into this
-const SHADER_EXT: [(&str, ShaderType); 1] = [(".spv", ShaderType::Spirv)];
+const SHADER_EXT: [(&str, ShaderType); 4] = [
+    (".spv", ShaderType::Spirv),
+    (".glsl", ShaderType::Glsl),
+    (".metal", ShaderType::Metal),
+    (".hlsl", ShaderType::Hlsl),
+];
 
 // Errors relating to `Shader`s and `ShaderProgram`s
 // TODO: impl Display (and other useful derivations for an enum) for ShaderError
@@ -41,12 +44,16 @@ pub enum ShaderError {
 // TODO: Docstrings, comments, maybe creating shader modules from this module?
 pub struct Shader {
     pub kind: ShaderType,
-    pub id: Option<u32>,
+    pub stage: gfx_hal::pso::Stage,
     pub data: Option<Vec<u32>>,
 }
 
 impl Shader {
-    pub fn new(res: &resources::Resource, filename: &str) -> Result<Shader, ShaderError> {
+    pub fn new(
+        res: &resources::Resource,
+        filename: &str,
+        stage: Stage,
+    ) -> Result<Shader, ShaderError> {
         let shader_type = SHADER_EXT
             .iter()
             .find(|&&(ext, _)| filename.ends_with(ext))
@@ -66,7 +73,7 @@ impl Shader {
                     .expect("Invalid SPIR-V shader");
                 Ok(Shader {
                     kind: shader_type,
-                    id: Option::None,
+                    stage: stage,
                     data: Option::from(spirv),
                 })
             }

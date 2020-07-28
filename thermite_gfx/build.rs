@@ -1,5 +1,5 @@
 use shaderc;
-use spirv_cross::{hlsl, msl, spirv, ErrorCode};
+use spirv_cross::{hlsl, msl, spirv};
 use std::env;
 use std::fs::{self, DirBuilder};
 use std::path::{Path, PathBuf};
@@ -154,7 +154,9 @@ fn create_hlsl_from_compiled_spirv(filename: &str, spirv_module: &spirv::Module)
     use std::io::prelude::*;
     let mut hlsl_file_out = File::create(format!("assets/shaders/hlsl/{}.hlsl", filename))
         .expect("Couldn't create new HLSL file");
-    hlsl_file_out.write_all(hlsl_output.as_bytes());
+    hlsl_file_out
+        .write_all(hlsl_output.as_bytes())
+        .expect("Couldn't write HLSL file to disk!")
 }
 
 /// Creates an equivalent .metal (macOS) shader file from a compiled SPIR-V shader
@@ -168,5 +170,7 @@ fn create_msl_from_compiled_spirv(filename: &str, spirv_module: &spirv::Module) 
     use std::io::prelude::*;
     let mut msl_file_out = File::create(format!("assets/shaders/metal/{}.metal", filename))
         .expect("Couldn't create new Metal file");
-    msl_file_out.write_all(msl_output.as_bytes());
+    msl_file_out
+        .write_all(msl_output.as_bytes())
+        .expect("Couldn't write Metal file to disk!")
 }

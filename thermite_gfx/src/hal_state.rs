@@ -270,8 +270,8 @@ impl HALState {
                 &logical_device,
                 &render_pass,
                 &pipeline_layout,
-                "p1.vert.spv",
-                "p1.frag.spv",
+                "test.vert.spv",
+                "test.frag.spv",
             )
         };
         let submission_complete_fence = logical_device.create_fence(true).expect("Out of memory");
@@ -346,15 +346,17 @@ unsafe fn make_pipeline<B: gfx_hal::Backend>(
     use gfx_hal::pass::Subpass;
     use gfx_hal::pso::{
         BlendState, ColorBlendDesc, ColorMask, EntryPoint, Face, GraphicsPipelineDesc,
-        GraphicsShaderSet, Primitive, Rasterizer, Specialization,
+        GraphicsShaderSet, Primitive, Rasterizer, Specialization, Stage,
     };
-    let shader_res = resources::Resource::new(std::path::Path::new("assets/shaders/spirv_out"))
+    let shader_res = resources::Resource::new(std::path::Path::new("assets/shaders/spirv"))
         .expect("Couldn't open shader resource");
-    let vs = Shader::new(&shader_res, vertex_shader).expect("Couldn't create vertex shader");
+    let vs = Shader::new(&shader_res, vertex_shader, Stage::Vertex)
+        .expect("Couldn't create vertex shader");
     let vertex_shader_module = logical_device
         .create_shader_module(&vs.data.expect("Couldn't get vertex shader data"))
         .expect("Couldn't load vertex shader module");
-    let fs = Shader::new(&shader_res, fragment_shader).expect("Couldn't create fragment shader");
+    let fs = Shader::new(&shader_res, fragment_shader, Stage::Fragment)
+        .expect("Couldn't create fragment shader");
     let fragment_shader_module = logical_device
         .create_shader_module(&fs.data.expect("Couldn't get fragment shader data"))
         .expect("Couldn't load fragment shader module");

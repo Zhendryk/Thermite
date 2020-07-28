@@ -9,8 +9,7 @@ fn main() {
     simple_logger::init().expect("Couldn't create simple logger");
     let mut should_configure_swapchain = true;
     let mut window = window::Window::default();
-    let mut hs = HALState::new(window.handle());
-    let mut hal_state = hs.expect("Couldn't create HALState");
+    let mut hal_state = HALState::new(window.handle()).expect("Couldn't create HALState");
     let mut surface_extent = Extent2D {
         width: window.physical_size().width,
         height: window.physical_size().height,
@@ -51,7 +50,10 @@ fn main() {
             Event::RedrawRequested(_) => {
                 // NOTE: perform rendering here
                 unsafe {
-                    hal_state.resources.reset_command_pool(1_000_000_000);
+                    hal_state
+                        .resources
+                        .reset_command_pool(1_000_000_000)
+                        .expect("Couldn't reset command pool");
                 };
                 if should_configure_swapchain {
                     surface_extent = hal_state
@@ -81,8 +83,8 @@ fn main() {
                     hal_state
                         .resources
                         .record_cmds_for_submission(&framebuffer, &viewport);
-                    should_configure_swapchain |=
-                        hal_state.resources.submit_cmds(surface_image, framebuffer);
+                    should_configure_swapchain |= hal_state.resources.submit_cmds(surface_image);
+                    hal_state.resources.destroy_framebuffer(framebuffer);
                 };
             }
             _ => (),

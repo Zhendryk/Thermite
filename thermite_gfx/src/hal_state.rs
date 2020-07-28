@@ -130,7 +130,7 @@ impl HALResources<ThermiteBackend> {
         self.command_buffer.set_scissors(0, &[viewport.rect]);
         self.command_buffer.begin_render_pass(
             render_pass,
-            &framebuffer,
+            framebuffer,
             viewport.rect,
             &[ClearValue {
                 color: ClearColor {
@@ -148,7 +148,7 @@ impl HALResources<ThermiteBackend> {
     pub unsafe fn submit_cmds(
         &mut self,
         surface_image: ThermiteSwapchainImage,
-        framebuffer: ThermiteFramebuffer,
+        // framebuffer: &ThermiteFramebuffer,
     ) -> bool {
         use gfx_hal::queue::{CommandQueue, Submission};
         let submission = Submission {
@@ -162,8 +162,12 @@ impl HALResources<ThermiteBackend> {
             surface_image,
             Some(&self.rendering_complete_semaphore),
         );
-        self.logical_device.destroy_framebuffer(framebuffer);
+        // self.logical_device.destroy_framebuffer(framebuffer);
         result.is_err()
+    }
+
+    pub unsafe fn destroy_framebuffer(&mut self, framebuffer: ThermiteFramebuffer) {
+        self.logical_device.destroy_framebuffer(framebuffer)
     }
 }
 
@@ -455,13 +459,6 @@ unsafe fn make_pipeline<ThermiteBackend>(
         mask: ColorMask::ALL,
         blend: Some(BlendState::ALPHA),
     });
-    // TODO: Failing at gfx_backend_dx12::device::2058 Direct3D Error 80070057 (Invalid Parameter)
-    /* ERROR MESSAGE FROM DEBUGGING (F5)
-        D3D12 ERROR: ID3D12Device::CreateGraphicsPipelineState: The Vertex Shader expects application
-        provided input data (which is to say data other than hardware auto-generated values such as VertexID or InstanceID).
-        Therefore an Input Assembler object is expected, but none is bound.
-        [ STATE_CREATION ERROR #658: CREATEGRAPHICSPIPELINESTATE_INPUTLAYOUT_NOT_SET]
-    */
     let pipeline = logical_device
         .create_graphics_pipeline(&pipeline_desc, None)
         .map_err(|e| HALError::PipelineError { inner: e })?;

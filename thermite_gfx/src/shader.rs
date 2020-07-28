@@ -20,26 +20,26 @@ const SHADER_EXT: [(&str, ShaderType); 4] = [
 #[derive(Debug)]
 pub enum ShaderError {
     ResourceLoadError {
-        name: String,
+        filename: String,
         inner: resources::ResourceError,
     },
     CannotDetermineShaderTypeForResource {
-        name: String,
+        filename: String,
     },
     UnsupportedShaderType {
-        name: String,
+        filename: String,
         unsupported_type: String,
     },
     CompileError {
-        name: String,
+        filename: String,
         message: String,
     },
     LinkError {
-        name: String,
+        filename: String,
         message: String,
     },
     SpirvReadError {
-        name: String,
+        filename: String,
         inner: std::io::Error,
     },
 }
@@ -47,28 +47,29 @@ pub enum ShaderError {
 impl std::fmt::Display for ShaderError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            ShaderError::ResourceLoadError { name, inner } => {
-                write!(f, "{:?} ({}): {:?}", self, name, inner)
+            ShaderError::ResourceLoadError { filename, inner } => {
+                write!(f, "{:?} ({}): {:?}", self, filename, inner)
             }
-            ShaderError::CannotDetermineShaderTypeForResource { name } => {
-                write!(f, "{:?} ({})", self, name)
+            ShaderError::CannotDetermineShaderTypeForResource { filename } => {
+                write!(f, "{:?} ({})", self, filename)
             }
             ShaderError::UnsupportedShaderType {
-                name,
+                filename,
                 unsupported_type,
-            } => write!(f, "{:?} ({}): {}", self, name, unsupported_type),
-            ShaderError::CompileError { name, message } => {
-                write!(f, "{:?} ({}): {}", self, name, message)
+            } => write!(f, "{:?} ({}): {}", self, filename, unsupported_type),
+            ShaderError::CompileError { filename, message } => {
+                write!(f, "{:?} ({}): {}", self, filename, message)
             }
-            ShaderError::LinkError { name, message } => {
-                write!(f, "{:?} ({}): {}", self, name, message)
+            ShaderError::LinkError { filename, message } => {
+                write!(f, "{:?} ({}): {}", self, filename, message)
             }
-            ShaderError::SpirvReadError { name, inner } => {
-                write!(f, "{:?} ({}): {:?}", self, name, inner)
+            ShaderError::SpirvReadError { filename, inner } => {
+                write!(f, "{:?} ({}): {:?}", self, filename, inner)
             }
         }
     }
 }
+impl std::error::Error for ShaderError {}
 
 // TODO: Docstrings, comments, maybe creating shader modules from this module?
 pub struct Shader {
@@ -91,17 +92,17 @@ impl Shader {
             .find(|&&(ext, _)| filename.ends_with(ext))
             .map(|&(_, kind)| kind)
             .ok_or_else(|| ShaderError::CannotDetermineShaderTypeForResource {
-                name: filename.into(),
+                filename: filename.into(),
             })?;
         let bytecode =
             res.load_to_bytes(filename, false)
                 .map_err(|e| ShaderError::ResourceLoadError {
-                    name: filename.into(),
+                    filename: filename.into(),
                     inner: e,
                 })?;
         let spirv = gfx_hal::pso::read_spirv(std::io::Cursor::new(&bytecode)).map_err(|e| {
             ShaderError::SpirvReadError {
-                name: filename.into(),
+                filename: filename.into(),
                 inner: e,
             }
         })?;
@@ -124,7 +125,7 @@ impl Shader {
         logical_device
             .create_shader_module(&self.spirv)
             .map_err(|e| ShaderError::CompileError {
-                name: self.filename.clone(),
+                filename: self.filename.clone(),
                 message: format!("{:?}", e),
             })
     }

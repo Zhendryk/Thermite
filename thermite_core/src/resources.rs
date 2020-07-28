@@ -13,6 +13,14 @@ pub enum ResourceError {
     FailedToGetExePath,
 }
 
+impl std::fmt::Display for ResourceError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{:?}", self)
+    }
+}
+
+impl std::error::Error for ResourceError {}
+
 impl From<io::Error> for ResourceError {
     fn from(other: io::Error) -> Self {
         ResourceError::Io(other)

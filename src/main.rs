@@ -9,7 +9,8 @@ fn main() {
     simple_logger::init().expect("Couldn't create simple logger");
     let mut should_configure_swapchain = true;
     let mut window = window::Window::default();
-    let mut hal_state = HALState::new(window.handle()).expect("Couldn't create HALState");
+    let mut hs = HALState::new(window.handle());
+    let mut hal_state = hs.expect("Couldn't create HALState");
     let mut surface_extent = Extent2D {
         width: window.physical_size().width,
         height: window.physical_size().height,
@@ -53,7 +54,10 @@ fn main() {
                     hal_state.resources.reset_command_pool(1_000_000_000);
                 };
                 if should_configure_swapchain {
-                    surface_extent = hal_state.resources.recreate_swapchain(surface_extent);
+                    surface_extent = hal_state
+                        .resources
+                        .recreate_swapchain(surface_extent)
+                        .expect("Couldn't recreate swapchain");
                     should_configure_swapchain = false;
                 }
                 let surface_image = unsafe {

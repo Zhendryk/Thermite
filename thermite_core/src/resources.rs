@@ -63,14 +63,20 @@ impl Resource {
     ///
     /// - `Ok`: A `Vec<u8>` containing the raw data bytes of the resource file in question.
     /// - `Err`: A `ResourceError` describing the various IO errors that may have occurred during loading of the resource file.
-    pub fn load_to_bytes(&self, resource_name: &str) -> Result<Vec<u8>, ResourceError> {
+    pub fn load_to_bytes(
+        &self,
+        resource_name: &str,
+        check_for_interior_null: bool,
+    ) -> Result<Vec<u8>, ResourceError> {
         let mut file = fs::File::open(self.path_for(resource_name))?;
         // File buffer of size +1 for null termination character
         let mut buffer: Vec<u8> = Vec::with_capacity(file.metadata()?.len() as usize + 1);
         file.read_to_end(&mut buffer)?;
-        // Check the file for interior 0 (null) bytes
-        if buffer.iter().find(|i| **i == 0).is_some() {
-            return Err(ResourceError::FileContainsNil);
+        if check_for_interior_null {
+            // Check the file for interior 0 (null) bytes
+            if buffer.iter().find(|i| **i == 0).is_some() {
+                return Err(ResourceError::FileContainsNil);
+            }
         }
         Ok(buffer)
     }
@@ -87,9 +93,13 @@ impl Resource {
     ///
     /// - `Ok`: A `CString` containing the raw data of the resource file in question.
     /// - `Err`: A `ResourceError` describing the various IO errors that may have occurred during loading of the resource file.
-    pub fn load_to_cstring(&self, resource_name: &str) -> Result<CString, ResourceError> {
+    pub fn load_to_cstring(
+        &self,
+        resource_name: &str,
+        check_for_interior_null: bool,
+    ) -> Result<CString, ResourceError> {
         // These file bytes should return a `ResourceError` if there are any interior null bytes
-        let file_bytes = self.load_to_bytes(resource_name)?;
+        let file_bytes = self.load_to_bytes(resource_name, check_for_interior_null)?;
         let cstr = unsafe { CString::from_vec_unchecked(file_bytes) };
         Ok(cstr)
     }

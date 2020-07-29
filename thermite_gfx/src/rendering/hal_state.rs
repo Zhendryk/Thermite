@@ -388,6 +388,7 @@ impl Drop for HALState {
                 vertex_buffer,
                 mesh,
             } = ManuallyDrop::take(&mut self.resources);
+            let _ = logical_device.wait_idle();
             logical_device.free_memory(vertex_buffer_memory);
             logical_device.destroy_buffer(vertex_buffer);
             logical_device.destroy_semaphore(rendering_complete_semaphore);

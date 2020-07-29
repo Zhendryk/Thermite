@@ -15,4 +15,4 @@ Cargo.lock
 !.vscode/launch.json
 
 # Misc
-**/spirv_out
+**/spirv

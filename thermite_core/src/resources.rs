@@ -11,6 +11,7 @@ pub enum ResourceError {
     Io(io::Error),
     FileContainsNil,
     FailedToGetExePath,
+    DeserializationFailure,
 }
 
 impl std::fmt::Display for ResourceError {

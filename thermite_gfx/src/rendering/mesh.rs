@@ -1,44 +1,49 @@
 use bincode;
-use gfx_hal::{device::Device, Backend};
-use thermite_core::resources::Resource;
+use gfx_hal::{
+    self,
+    adapter::PhysicalDevice,
+    buffer::Usage,
+    device::Device,
+    memory::{Properties, Segment},
+    MemoryTypeId,
+};
+use serde;
+use thermite_core::resources::{Resource, ResourceError};
 
-#[derive(serde::Deserialize)]
 #[repr(C)]
+#[derive(serde::Deserialize)]
 pub struct Vertex {
     position: [f32; 3],
     normal: [f32; 3],
 }
 
+/// A 3D mesh
 pub struct Mesh {
     pub(crate) vertex_count: usize,
-    binary_data: Vec<u8>,
-    vertex_data: Vec<Vertex>,
+    // pub(crate) binary_data: Vec<u8>,
+    pub(crate) vertex_data: Vec<Vertex>,
 }
 
 impl Mesh {
-    pub fn new(res: &Resource, filename: &str) -> Self {
-        let binary_data = res
-            .load_to_bytes(filename, false)
-            .expect("Failed to find mesh file!");
-        let vertex_data: Vec<Vertex> =
-            bincode::deserialize(&binary_data).expect("Failed to deserialize mesh!");
+    pub fn new(res: &Resource, filename: &str) -> Result<Self, ResourceError> {
+        let binary_data = res.load_to_bytes(filename, false)?;
+        let vertex_data: Vec<Vertex> = bincode::deserialize(&binary_data)
+            .map_err(|e| ResourceError::DeserializationFailure)?;
         let vertex_count = vertex_data.len();
-        Mesh {
+        Ok(Mesh {
             vertex_count: vertex_count,
-            binary_data: binary_data,
+            // binary_data: binary_data,
             vertex_data: vertex_data,
-        }
+        })
     }
 
-    pub fn vertex_buffer<B: Backend>(
+    pub fn vertex_buffer<B: gfx_hal::Backend>(
         &self,
         logical_device: &B::Device,
         physical_device: &B::PhysicalDevice,
     ) -> (B::Memory, B::Buffer) {
         let vertex_buffer_len = self.vertex_count * std::mem::size_of::<Vertex>();
         let (vertex_buffer_memory, vertex_buffer) = unsafe {
-            use gfx_hal::buffer::Usage;
-            use gfx_hal::memory::Properties;
             make_buffer::<B>(
                 logical_device,
                 physical_device,
@@ -48,7 +53,6 @@ impl Mesh {
             )
         };
         unsafe {
-            use gfx_hal::memory::Segment;
             let mapped_memory = logical_device
                 .map_memory(&vertex_buffer_memory, Segment::ALL)
                 .expect("TODO");
@@ -67,14 +71,13 @@ impl Mesh {
 }
 
 /// Create a memory buffer of the specified `buffer_len`, of type `usage`
-unsafe fn make_buffer<B: Backend>(
+unsafe fn make_buffer<B: gfx_hal::Backend>(
     logical_device: &B::Device,
     physical_device: &B::PhysicalDevice,
     buffer_len: usize,
     usage: gfx_hal::buffer::Usage,
     properties: gfx_hal::memory::Properties,
 ) -> (B::Memory, B::Buffer) {
-    use gfx_hal::{adapter::PhysicalDevice, MemoryTypeId};
     // Create a buffer object
     let mut buffer = logical_device
         .create_buffer(buffer_len as u64, usage)

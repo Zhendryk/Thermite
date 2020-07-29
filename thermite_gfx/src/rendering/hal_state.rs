@@ -336,10 +336,10 @@ impl HALState {
         let rendering_complete_semaphore = logical_device
             .create_semaphore()
             .map_err(|e| HALError::OutOfMemory { inner: e })?;
-        use crate::rendering::mesh::Mesh;
         let mesh_res = resources::Resource::new(std::path::Path::new("assets/meshes/"))
             .expect("Couldn't get mesh resource");
-        let teapot_mesh = Mesh::new(&mesh_res, "teapot_mesh.bin");
+        let teapot_mesh =
+            Mesh::new(&mesh_res, "teapot_mesh.bin").expect("Couldn't load teapot mesh!");
         let (vertex_buffer_memory, vertex_buffer) =
             teapot_mesh.vertex_buffer::<ThermiteBackend>(&logical_device, &adapter.physical_device);
         let hal_state = HALState {
@@ -473,7 +473,7 @@ unsafe fn make_pipeline<ThermiteBackend>(
         shader_entries,
         Primitive::TriangleList,
         Rasterizer {
-            // polygon_mode: PolygonMode::Line, // Uncomment this for wireframe polygons
+            polygon_mode: PolygonMode::Line, // Uncomment this for wireframe polygons
             cull_face: Face::NONE,
             ..Rasterizer::FILL
         },

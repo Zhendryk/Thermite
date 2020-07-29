@@ -394,7 +394,6 @@ impl Drop for HALState {
             logical_device.destroy_semaphore(rendering_complete_semaphore);
             logical_device.destroy_fence(submission_complete_fence);
             for pipeline in pipelines {
-                // TODO: See why this results in an Access Violation upon closing the window...
                 logical_device.destroy_graphics_pipeline(pipeline);
             }
             for pipeline_layout in pipeline_layouts {

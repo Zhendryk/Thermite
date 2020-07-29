@@ -1,6 +1,14 @@
 use gfx_hal::{self, device::Device, pso::ShaderStageFlags, Backend};
 use thermite_core::resources;
 
+#[repr(C)] // Layout this struct in memory the same as C (and shader code) would
+#[derive(Debug, Clone, Copy)]
+pub struct PushConstants {
+    pub color: [f32; 4],
+    pub pos: [f32; 2],
+    pub scale: [f32; 2],
+}
+
 #[derive(Debug, Copy, Clone)]
 pub enum ShaderType {
     Spirv,

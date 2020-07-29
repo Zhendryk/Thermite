@@ -1,4 +1,4 @@
-use crate::shader::Shader;
+use crate::shaders::shader::{PushConstants, Shader};
 use backend::{
     self as ThermiteGfx, Backend as ThermiteBackend, Device as ThermiteDevice,
     Instance as ThermiteInstance,
@@ -8,7 +8,7 @@ use gfx_hal::{
     adapter::Adapter,
     device::{Device, OomOrDeviceLost, OutOfMemory},
     format::Format,
-    pso::{Rect, Viewport},
+    pso::{Rect, ShaderStageFlags, Viewport},
     queue::{family::QueueFamily, QueueGroup},
     window::{
         AcquireError, CreationError, Extent2D, PresentationSurface, Surface, SwapchainConfig,
@@ -118,18 +118,17 @@ impl HALResources<ThermiteBackend> {
         &mut self,
         framebuffer: &ThermiteFramebuffer,
         viewport: &Viewport,
+        triangles: &[PushConstants],
     ) {
         use gfx_hal::command::{
             ClearColor, ClearValue, CommandBuffer, CommandBufferFlags, SubpassContents,
         };
-        let render_pass = &self.render_passes[0];
-        let pipeline = &self.pipelines[0];
         self.command_buffer
             .begin_primary(CommandBufferFlags::ONE_TIME_SUBMIT);
         self.command_buffer.set_viewports(0, &[viewport.clone()]);
         self.command_buffer.set_scissors(0, &[viewport.rect]);
         self.command_buffer.begin_render_pass(
-            render_pass,
+            &self.render_passes[0],
             framebuffer,
             viewport.rect,
             &[ClearValue {
@@ -139,8 +138,17 @@ impl HALResources<ThermiteBackend> {
             }],
             SubpassContents::Inline,
         );
-        self.command_buffer.bind_graphics_pipeline(pipeline);
-        self.command_buffer.draw(0..3, 0..1);
+        self.command_buffer
+            .bind_graphics_pipeline(&self.pipelines[0]);
+        for triangle in triangles {
+            self.command_buffer.push_graphics_constants(
+                &self.pipeline_layouts[0],
+                ShaderStageFlags::VERTEX,
+                0,
+                push_constant_bytes(triangle),
+            );
+            self.command_buffer.draw(0..3, 0..1);
+        }
         self.command_buffer.end_render_pass();
         self.command_buffer.finish()
     }
@@ -168,6 +176,14 @@ impl HALResources<ThermiteBackend> {
     pub unsafe fn destroy_framebuffer(&mut self, framebuffer: ThermiteFramebuffer) {
         self.logical_device.destroy_framebuffer(framebuffer)
     }
+}
+
+/// Returns a view of a struct (normally `PushConstants`) as a slice of `u32`s
+unsafe fn push_constant_bytes<T>(push_constants: &T) -> &[u32] {
+    let size_in_bytes = std::mem::size_of::<T>();
+    let size_in_u32s = size_in_bytes / std::mem::size_of::<u32>();
+    let start_ptr = push_constants as *const T as *const u32;
+    std::slice::from_raw_parts(start_ptr, size_in_u32s)
 }
 
 // TODO (HALState): Error handling &| propagation, doc comments, general cleanup, maybe some function separation
@@ -294,9 +310,10 @@ impl HALState {
                     .map_err(|e| HALError::OutOfMemory { inner: e })?
             }
         };
+        let push_constant_bytes = std::mem::size_of::<PushConstants>() as u32;
         let pipeline_layout = unsafe {
             logical_device
-                .create_pipeline_layout(&[], &[])
+                .create_pipeline_layout(&[], &[(ShaderStageFlags::VERTEX, 0..push_constant_bytes)])
                 .map_err(|e| HALError::OutOfMemory { inner: e })?
         };
         let pipeline = unsafe {
@@ -437,7 +454,7 @@ unsafe fn make_pipeline<ThermiteBackend>(
         shader_entries,
         Primitive::TriangleList,
         Rasterizer {
-            polygon_mode: PolygonMode::Line,
+            // polygon_mode: PolygonMode::Line, // Uncomment this for wireframe polygons
             cull_face: Face::NONE,
             ..Rasterizer::FILL
         },

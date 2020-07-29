@@ -2,5 +2,5 @@
 pub use gfx_hal;
 
 // thermite_gfx modules
-pub mod hal_state;
-pub mod shader;
+pub mod rendering;
+pub mod shaders;

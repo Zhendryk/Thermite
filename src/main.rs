@@ -2,7 +2,9 @@
 use log::{debug, error, info, trace, warn};
 use simple_logger;
 
-use thermite_gfx::{gfx_hal::window::Extent2D, hal_state::HALState};
+use thermite_gfx::{
+    gfx_hal::window::Extent2D, rendering::hal_state::HALState, shaders::shader::PushConstants,
+};
 use thermite_ui::window;
 
 fn main() {
@@ -14,6 +16,7 @@ fn main() {
         width: window.physical_size().width,
         height: window.physical_size().height,
     };
+    let start_time = std::time::Instant::now();
     window.event_loop().run(move |event, _, control_flow| {
         use thermite_ui::winit::{
             event::{DeviceEvent, Event, VirtualKeyCode, WindowEvent},
@@ -49,6 +52,46 @@ fn main() {
             Event::MainEventsCleared => window.handle().request_redraw(),
             Event::RedrawRequested(_) => {
                 // NOTE: perform rendering here
+                let anim = start_time.elapsed().as_secs_f32().sin() * 0.5 + 0.5;
+                let small = [0.33, 0.33];
+                let triangles = &[
+                    // Red triangle
+                    PushConstants {
+                        color: [1.0, 0.0, 0.0, 1.0],
+                        pos: [-0.5, -0.5],
+                        scale: small,
+                    },
+                    // Green triangle
+                    PushConstants {
+                        color: [0.0, 1.0, 0.0, 1.0],
+                        pos: [0.0, -0.5],
+                        scale: small,
+                    },
+                    // Blue triangle
+                    PushConstants {
+                        color: [0.0, 0.0, 1.0, 1.0],
+                        pos: [0.5, -0.5],
+                        scale: small,
+                    },
+                    // Blue <-> cyan animated triangle
+                    PushConstants {
+                        color: [0.0, anim, 1.0, 1.0],
+                        pos: [-0.5, 0.5],
+                        scale: small,
+                    },
+                    // Down <-> up animated triangle
+                    PushConstants {
+                        color: [1.0, 1.0, 1.0, 1.0],
+                        pos: [0.0, 0.5 - anim * 0.5],
+                        scale: small,
+                    },
+                    // Small <-> big animated triangle
+                    PushConstants {
+                        color: [1.0, 1.0, 1.0, 1.0],
+                        pos: [0.5, 0.5],
+                        scale: [0.33 + anim * 0.33, 0.33 + anim * 0.33],
+                    },
+                ];
                 unsafe {
                     hal_state
                         .resources
@@ -79,9 +122,11 @@ fn main() {
                 };
                 let viewport = hal_state.resources.viewport(surface_extent);
                 unsafe {
-                    hal_state
-                        .resources
-                        .record_cmds_for_submission(&framebuffer, &viewport);
+                    hal_state.resources.record_cmds_for_submission(
+                        &framebuffer,
+                        &viewport,
+                        triangles,
+                    );
                     should_configure_swapchain |= hal_state.resources.submit_cmds(surface_image);
                     hal_state.resources.destroy_framebuffer(framebuffer);
                 };

@@ -4,9 +4,19 @@ use thermite_core::resources;
 #[repr(C)] // Layout this struct in memory the same as C (and shader code) would
 #[derive(Debug, Clone, Copy)]
 pub struct PushConstants {
-    pub color: [f32; 4],
-    pub pos: [f32; 2],
-    pub scale: [f32; 2],
+    pub transform: [[f32; 4]; 4],
+}
+
+pub fn make_transform(translate: [f32; 3], angle: f32, scale: f32) -> [[f32; 4]; 4] {
+    let c = angle.cos() * scale;
+    let s = angle.sin() * scale;
+    let [dx, dy, dz] = translate;
+    [
+        [c, 0.0, s, 0.0],
+        [0.0, scale, 0.0, 0.0],
+        [-s, 0.0, c, 0.0],
+        [dx, dy, dz, 1.0],
+    ]
 }
 
 #[derive(Debug, Copy, Clone)]

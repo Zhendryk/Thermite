@@ -52,46 +52,11 @@ fn main() {
             Event::MainEventsCleared => window.handle().request_redraw(),
             Event::RedrawRequested(_) => {
                 // NOTE: perform rendering here
-                let anim = start_time.elapsed().as_secs_f32().sin() * 0.5 + 0.5;
-                let small = [0.33, 0.33];
-                let triangles = &[
-                    // Red triangle
-                    PushConstants {
-                        color: [1.0, 0.0, 0.0, 1.0],
-                        pos: [-0.5, -0.5],
-                        scale: small,
-                    },
-                    // Green triangle
-                    PushConstants {
-                        color: [0.0, 1.0, 0.0, 1.0],
-                        pos: [0.0, -0.5],
-                        scale: small,
-                    },
-                    // Blue triangle
-                    PushConstants {
-                        color: [0.0, 0.0, 1.0, 1.0],
-                        pos: [0.5, -0.5],
-                        scale: small,
-                    },
-                    // Blue <-> cyan animated triangle
-                    PushConstants {
-                        color: [0.0, anim, 1.0, 1.0],
-                        pos: [-0.5, 0.5],
-                        scale: small,
-                    },
-                    // Down <-> up animated triangle
-                    PushConstants {
-                        color: [1.0, 1.0, 1.0, 1.0],
-                        pos: [0.0, 0.5 - anim * 0.5],
-                        scale: small,
-                    },
-                    // Small <-> big animated triangle
-                    PushConstants {
-                        color: [1.0, 1.0, 1.0, 1.0],
-                        pos: [0.5, 0.5],
-                        scale: [0.33 + anim * 0.33, 0.33 + anim * 0.33],
-                    },
-                ];
+                let angle = start_time.elapsed().as_secs_f32();
+                use thermite_gfx::shaders::shader::make_transform;
+                let teapots = &[PushConstants {
+                    transform: make_transform([0.0, 0.0, 0.5], angle, 1.0),
+                }];
                 unsafe {
                     hal_state
                         .resources
@@ -125,7 +90,7 @@ fn main() {
                     hal_state.resources.record_cmds_for_submission(
                         &framebuffer,
                         &viewport,
-                        triangles,
+                        teapots,
                     );
                     should_configure_swapchain |= hal_state.resources.submit_cmds(surface_image);
                     hal_state.resources.destroy_framebuffer(framebuffer);

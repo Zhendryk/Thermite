@@ -1,3 +1,4 @@
+use crate::rendering::mesh::Mesh;
 use crate::shaders::shader::{PushConstants, Shader};
 use backend::{
     self as ThermiteGfx, Backend as ThermiteBackend, Device as ThermiteDevice,
@@ -42,6 +43,9 @@ pub struct HALResources<B: Backend> {
     format: Format,
     submission_complete_fence: B::Fence,
     rendering_complete_semaphore: B::Semaphore,
+    vertex_buffer_memory: B::Memory,
+    vertex_buffer: B::Buffer,
+    mesh: Mesh,
 }
 
 impl HALResources<ThermiteBackend> {
@@ -118,7 +122,7 @@ impl HALResources<ThermiteBackend> {
         &mut self,
         framebuffer: &ThermiteFramebuffer,
         viewport: &Viewport,
-        triangles: &[PushConstants],
+        teapots: &[PushConstants],
     ) {
         use gfx_hal::command::{
             ClearColor, ClearValue, CommandBuffer, CommandBufferFlags, SubpassContents,
@@ -127,6 +131,10 @@ impl HALResources<ThermiteBackend> {
             .begin_primary(CommandBufferFlags::ONE_TIME_SUBMIT);
         self.command_buffer.set_viewports(0, &[viewport.clone()]);
         self.command_buffer.set_scissors(0, &[viewport.rect]);
+        self.command_buffer.bind_vertex_buffers(
+            0,
+            vec![(&self.vertex_buffer, gfx_hal::buffer::SubRange::WHOLE)],
+        );
         self.command_buffer.begin_render_pass(
             &self.render_passes[0],
             framebuffer,
@@ -140,24 +148,21 @@ impl HALResources<ThermiteBackend> {
         );
         self.command_buffer
             .bind_graphics_pipeline(&self.pipelines[0]);
-        for triangle in triangles {
+        for teapot in teapots {
             self.command_buffer.push_graphics_constants(
                 &self.pipeline_layouts[0],
                 ShaderStageFlags::VERTEX,
                 0,
-                push_constant_bytes(triangle),
+                push_constant_bytes(teapot),
             );
-            self.command_buffer.draw(0..3, 0..1);
+            self.command_buffer
+                .draw(0..self.mesh.vertex_count as u32, 0..1);
         }
         self.command_buffer.end_render_pass();
         self.command_buffer.finish()
     }
 
-    pub unsafe fn submit_cmds(
-        &mut self,
-        surface_image: ThermiteSwapchainImage,
-        // framebuffer: &ThermiteFramebuffer,
-    ) -> bool {
+    pub unsafe fn submit_cmds(&mut self, surface_image: ThermiteSwapchainImage) -> bool {
         use gfx_hal::queue::{CommandQueue, Submission};
         let submission = Submission {
             command_buffers: vec![&self.command_buffer],
@@ -331,6 +336,12 @@ impl HALState {
         let rendering_complete_semaphore = logical_device
             .create_semaphore()
             .map_err(|e| HALError::OutOfMemory { inner: e })?;
+        use crate::rendering::mesh::Mesh;
+        let mesh_res = resources::Resource::new(std::path::Path::new("assets/meshes/"))
+            .expect("Couldn't get mesh resource");
+        let teapot_mesh = Mesh::new(&mesh_res, "teapot_mesh.bin");
+        let (vertex_buffer_memory, vertex_buffer) =
+            teapot_mesh.vertex_buffer::<ThermiteBackend>(&logical_device, &adapter.physical_device);
         let hal_state = HALState {
             resources: ManuallyDrop::new(HALResources::<ThermiteBackend> {
                 instance: instance,
@@ -346,6 +357,9 @@ impl HALState {
                 format: surface_color_format,
                 submission_complete_fence: submission_complete_fence,
                 rendering_complete_semaphore: rendering_complete_semaphore,
+                vertex_buffer_memory,
+                vertex_buffer,
+                mesh: teapot_mesh,
             }),
         };
         Ok(hal_state)
@@ -370,7 +384,12 @@ impl Drop for HALState {
                 pipelines,
                 submission_complete_fence,
                 rendering_complete_semaphore,
+                vertex_buffer_memory,
+                vertex_buffer,
+                mesh,
             } = ManuallyDrop::take(&mut self.resources);
+            logical_device.free_memory(vertex_buffer_memory);
+            logical_device.destroy_buffer(vertex_buffer);
             logical_device.destroy_semaphore(rendering_complete_semaphore);
             logical_device.destroy_fence(submission_complete_fence);
             for pipeline in pipelines {
@@ -467,6 +486,30 @@ unsafe fn make_pipeline<ThermiteBackend>(
     pipeline_desc.blender.targets.push(ColorBlendDesc {
         mask: ColorMask::ALL,
         blend: Some(BlendState::ALPHA),
+    });
+    // Vertex buffer stuff
+    use crate::rendering::mesh::Vertex;
+    use gfx_hal::pso::{AttributeDesc, Element, VertexBufferDesc, VertexInputRate};
+    pipeline_desc.vertex_buffers.push(VertexBufferDesc {
+        binding: 0,
+        stride: std::mem::size_of::<Vertex>() as u32,
+        rate: VertexInputRate::Vertex,
+    });
+    pipeline_desc.attributes.push(AttributeDesc {
+        location: 0,
+        binding: 0,
+        element: Element {
+            format: Format::Rgb32Sfloat,
+            offset: 0,
+        },
+    });
+    pipeline_desc.attributes.push(AttributeDesc {
+        location: 1,
+        binding: 0,
+        element: Element {
+            format: Format::Rgb32Sfloat,
+            offset: 12,
+        },
     });
     let pipeline = logical_device
         .create_graphics_pipeline(&pipeline_desc, None)

@@ -1,19 +1,13 @@
-use backend::Backend as ThermiteBackend;
 use gfx_hal::{
     self,
-    device::Device,
-    pso::{EntryPoint, GraphicsShaderSet, ShaderStageFlags, Specialization},
-    Backend,
+    pso::{ShaderStageFlags, Specialization},
 };
-use thermite_core::resources::{Resource, ResourceError};
 
 #[repr(C)] // Layout this struct in memory the same as C (and shader code) would
 #[derive(Debug, Clone, Copy)]
 pub struct PushConstants {
     pub transform: [[f32; 4]; 4],
 }
-
-type ThermiteShaderModule = <ThermiteBackend as Backend>::ShaderModule;
 
 pub fn make_transform(translate: [f32; 3], angle: f32, scale: f32) -> [[f32; 4]; 4] {
     let c = angle.cos() * scale;
@@ -27,9 +21,10 @@ pub fn make_transform(translate: [f32; 3], angle: f32, scale: f32) -> [[f32; 4];
     ]
 }
 
+/// Errors returned by this module, related to operations with `Shader`s
 #[derive(Debug)]
 pub enum ShaderError {
-    ResourceLoadError(ResourceError),
+    ResourceLoadError(thermite_core::resources::ResourceError),
     CannotDetermineShaderTypeForResource(String),
     UnsupportedShaderType(String),
     CompileError(gfx_hal::device::ShaderError),
@@ -41,8 +36,8 @@ pub enum ShaderError {
     ShaderModuleNotCompiled,
 }
 
-impl From<ResourceError> for ShaderError {
-    fn from(error: ResourceError) -> Self {
+impl From<thermite_core::resources::ResourceError> for ShaderError {
+    fn from(error: thermite_core::resources::ResourceError) -> Self {
         ShaderError::ResourceLoadError(error)
     }
 }
@@ -73,23 +68,24 @@ impl std::fmt::Display for ShaderError {
 
 impl std::error::Error for ShaderError {}
 
-// TODO: Docstrings, comments, maybe creating shader modules from this module?
-pub struct Shader<B: Backend> {
+/// Structure containing all of the information needed to create and use a Shader in a rendering pipeline
+pub struct Shader<B: gfx_hal::Backend> {
     filename: String,
-    stage: ShaderStageFlags,
+    stage: gfx_hal::pso::ShaderStageFlags,
     entry: String,
     spirv: Vec<u32>,
-    specialization: Specialization<'static>,
+    specialization: gfx_hal::pso::Specialization<'static>,
     module: Option<B::ShaderModule>,
 }
 
-impl<B: Backend> Shader<B> {
+impl<B: gfx_hal::Backend> Shader<B> {
+    /// Create a new `Shader` of type `stage` with the given `entry` and `specialization` residing inside the given `Resource`
     pub fn new(
-        res: &Resource,
+        res: &thermite_core::resources::Resource,
         filename: &str,
-        stage: ShaderStageFlags,
+        stage: gfx_hal::pso::ShaderStageFlags,
         entry: &str,
-        specialization: Specialization<'static>,
+        specialization: gfx_hal::pso::Specialization<'static>,
     ) -> Result<Shader<B>, ShaderError> {
         let bytecode = res.load_to_bytes(filename, false)?;
         let spirv = gfx_hal::pso::read_spirv(std::io::Cursor::new(&bytecode)).map_err(|e| {
@@ -108,11 +104,17 @@ impl<B: Backend> Shader<B> {
         })
     }
 
-    pub unsafe fn compile_module(&mut self, logical_device: &B::Device) -> Result<(), ShaderError> {
+    /// Interally compile and store this `Shader`'s module
+    pub(crate) unsafe fn compile_module(
+        &mut self,
+        logical_device: &B::Device,
+    ) -> Result<(), ShaderError> {
+        use gfx_hal::device::Device;
         Ok(self.module = Some(logical_device.create_shader_module(&self.spirv)?))
     }
 
-    pub fn entrypoint<'a>(&'a self) -> Result<gfx_hal::pso::EntryPoint<'a, B>, ShaderError> {
+    /// Generate and return this `Shader`'s `EntryPoint` to be used in a `ShaderSet`
+    pub(crate) fn entrypoint<'a>(&'a self) -> Result<gfx_hal::pso::EntryPoint<'a, B>, ShaderError> {
         Ok(gfx_hal::pso::EntryPoint {
             entry: &self.entry,
             module: self
@@ -123,8 +125,10 @@ impl<B: Backend> Shader<B> {
         })
     }
 
+    /// Free the memory associated with this `Shader`'s module
     pub fn destroy(&mut self, logical_device: &B::Device) {
         if let Some(module) = self.module.take() {
+            use gfx_hal::device::Device;
             unsafe {
                 logical_device.destroy_shader_module(module);
             }
@@ -133,7 +137,7 @@ impl<B: Backend> Shader<B> {
     }
 }
 
-impl<B: Backend> Drop for Shader<B> {
+impl<B: gfx_hal::Backend> Drop for Shader<B> {
     fn drop(&mut self) {
         if self.module.is_some() {
             panic!("This shader class needs to be manually dropped with destroy() first");
@@ -143,16 +147,19 @@ impl<B: Backend> Drop for Shader<B> {
 
 use std::collections::HashMap;
 
-pub struct ShaderSet<B: Backend> {
-    shaders: HashMap<ShaderStageFlags, Shader<B>>,
+/// Structure containing all of the `Shader`s to be used in a rendering pipeline, as a single set
+pub struct ShaderSet<B: gfx_hal::Backend> {
+    shaders: HashMap<gfx_hal::pso::ShaderStageFlags, Shader<B>>,
 }
 
-impl<'a, B: Backend> ShaderSet<B> {
-    /// Creates a `ShaderSet` including all shaders in the `using_stages` bitfield
+impl<'a, B: gfx_hal::Backend> ShaderSet<B> {
+    /// Creates a `ShaderSet` including all shader types denoted by the `using_stages` bitfield residing at the given `Resource`
+    ///
+    /// **NOTE:** All shader files in a single set must be named `set_name.extension`, and have the same entrypoint: `entry`
     pub unsafe fn new(
         set_name: &str,
-        res: &Resource,
-        using_stages: ShaderStageFlags,
+        res: &thermite_core::resources::Resource,
+        using_stages: gfx_hal::pso::ShaderStageFlags,
         entry: &'a str, // TODO: Should this be a vec, matched in size to num of stage flags?
         logical_device: &B::Device,
     ) -> Result<Self, ShaderError> {
@@ -221,8 +228,9 @@ impl<'a, B: Backend> ShaderSet<B> {
         }
     }
 
-    pub fn inner(&'a self) -> Result<GraphicsShaderSet<'a, B>, ShaderError> {
-        Ok(GraphicsShaderSet {
+    /// Returns the raw `GraphicsShaderSet` structure to be used in the rendering pipeline
+    pub fn inner(&'a self) -> Result<gfx_hal::pso::GraphicsShaderSet<'a, B>, ShaderError> {
+        Ok(gfx_hal::pso::GraphicsShaderSet {
             vertex: self
                 .shaders
                 .get(&ShaderStageFlags::VERTEX)
@@ -247,6 +255,7 @@ impl<'a, B: Backend> ShaderSet<B> {
         })
     }
 
+    /// Frees all shader modules associated with this `ShaderSet` and then clears this `ShaderSet`'s HashMap
     pub fn destroy(&mut self, logical_device: &B::Device) {
         for shader in self.shaders.values_mut() {
             shader.destroy(logical_device);

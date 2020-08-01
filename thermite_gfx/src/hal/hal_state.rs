@@ -369,13 +369,7 @@ impl HALState {
             )?
         };
         let pipeline = unsafe {
-            make_pipeline::<ThermiteBackend>(
-                &logical_device,
-                &render_pass,
-                &pipeline_layout,
-                "test.vert.spv",
-                "test.frag.spv",
-            )?
+            make_pipeline::<ThermiteBackend>(&logical_device, &render_pass, &pipeline_layout)?
         };
         let submission_complete_fence = logical_device.create_fence(true)?;
         let rendering_complete_semaphore = logical_device.create_semaphore()?;

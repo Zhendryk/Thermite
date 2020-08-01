@@ -1,27 +1,21 @@
 use crate::primitives::buffer::VertexBuffer;
 use crate::resources::mesh::Mesh;
-use crate::shaders::shader::{PushConstants, Shader, ShaderError, ShaderSet};
-use backend::{
-    self as ThermiteGfx, Backend as ThermiteBackend, Device as ThermiteDevice,
-    Instance as ThermiteInstance,
-};
+use crate::shaders::shader::{PushConstants, ShaderSet};
+use backend::{Backend as ThermiteBackend, Device as ThermiteDevice, Instance as ThermiteInstance};
 use gfx_hal::{
     self,
     adapter::Adapter,
-    device::{Device, OomOrDeviceLost, OutOfMemory},
+    device::Device,
     format::Format,
     pso::{Rect, ShaderStageFlags, Viewport},
     queue::{family::QueueFamily, QueueGroup},
-    window::{
-        AcquireError, CreationError, Extent2D, PresentationSurface, Surface, SwapchainConfig,
-    },
+    window::{Extent2D, PresentationSurface, Surface, SwapchainConfig},
     Backend, Instance,
 };
 use raw_window_handle::HasRawWindowHandle;
 use std::mem::ManuallyDrop;
 use thermite_core::resources;
 
-// TODO: Simplify these horrendous <backend::Backend as Backend>::* types...
 type ThermiteRenderPass = <ThermiteBackend as Backend>::RenderPass;
 type ThermitePipelineLayout = <ThermiteBackend as Backend>::PipelineLayout;
 type ThermiteGraphicsPipeline = <ThermiteBackend as Backend>::GraphicsPipeline;
@@ -29,7 +23,105 @@ type ThermiteSwapchainImage =
     <<ThermiteBackend as Backend>::Surface as PresentationSurface<ThermiteBackend>>::SwapchainImage;
 type ThermiteFramebuffer = <ThermiteBackend as Backend>::Framebuffer;
 
-// TODO (HALResources): Error handling &| propagation, doc comments, general cleanup
+/// The error type reported by this module, regarding Hardware Abstraction Layer operation errors/failures
+#[derive(Debug)]
+pub enum HALError {
+    UnsupportedBackend,
+    InitializationError(gfx_hal::window::InitError),
+    CreationError(gfx_hal::window::CreationError),
+    AdapterError {
+        message: String,
+        inner: Option<gfx_hal::device::CreationError>,
+    },
+    OutOfMemory(gfx_hal::device::OomOrDeviceLost),
+    ShaderError(crate::shaders::shader::ShaderError),
+    PipelineError(gfx_hal::pso::CreationError),
+    ResourceError(thermite_core::resources::ResourceError),
+    AcquireError(gfx_hal::window::AcquireError),
+}
+
+impl From<gfx_hal::window::InitError> for HALError {
+    fn from(error: gfx_hal::window::InitError) -> Self {
+        HALError::InitializationError(error)
+    }
+}
+
+impl From<gfx_hal::window::CreationError> for HALError {
+    fn from(error: gfx_hal::window::CreationError) -> Self {
+        HALError::CreationError(error)
+    }
+}
+
+impl From<gfx_hal::device::OomOrDeviceLost> for HALError {
+    fn from(error: gfx_hal::device::OomOrDeviceLost) -> Self {
+        HALError::OutOfMemory(error)
+    }
+}
+
+impl From<gfx_hal::device::OutOfMemory> for HALError {
+    fn from(error: gfx_hal::device::OutOfMemory) -> Self {
+        HALError::OutOfMemory(error.into())
+    }
+}
+
+impl From<crate::shaders::shader::ShaderError> for HALError {
+    fn from(error: crate::shaders::shader::ShaderError) -> Self {
+        HALError::ShaderError(error)
+    }
+}
+
+impl From<gfx_hal::pso::CreationError> for HALError {
+    fn from(error: gfx_hal::pso::CreationError) -> Self {
+        HALError::PipelineError(error)
+    }
+}
+
+impl From<thermite_core::resources::ResourceError> for HALError {
+    fn from(error: thermite_core::resources::ResourceError) -> Self {
+        HALError::ResourceError(error)
+    }
+}
+
+impl From<gfx_hal::window::AcquireError> for HALError {
+    fn from(error: gfx_hal::window::AcquireError) -> Self {
+        HALError::AcquireError(error)
+    }
+}
+
+impl std::fmt::Display for HALError {
+    fn fmt(&self, fmt: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            HALError::UnsupportedBackend => write!(fmt, "{:?}", self),
+            HALError::InitializationError(err) => write!(fmt, "{:?}: {}", self, err),
+            HALError::CreationError(err) => write!(fmt, "{:?}: {}", self, err),
+            HALError::AdapterError { message, inner } => {
+                write!(fmt, "{:?}: {} => {:?}", self, message, inner)
+            }
+            HALError::OutOfMemory(err) => write!(fmt, "{:?}: {}", self, err),
+            HALError::ShaderError(err) => write!(fmt, "{:?}: {}", self, err),
+            HALError::PipelineError(err) => write!(fmt, "{:?}: {}", self, err),
+            HALError::ResourceError(err) => write!(fmt, "{:?}: {}", self, err),
+            HALError::AcquireError(err) => write!(fmt, "{:?}: {}", self, err),
+        }
+    }
+}
+
+impl std::error::Error for HALError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            HALError::InitializationError(err) => Some(err),
+            HALError::CreationError(err) => Some(err),
+            HALError::OutOfMemory(err) => Some(err),
+            HALError::ShaderError(err) => Some(err),
+            HALError::PipelineError(err) => Some(err),
+            HALError::ResourceError(err) => Some(err),
+            HALError::AcquireError(err) => Some(err),
+            _ => None,
+        }
+    }
+}
+
+/// The resources associated with the HALState (requires manual memory management)
 pub struct HALResources<B: Backend> {
     instance: B::Instance,
     surface: B::Surface,
@@ -44,15 +136,16 @@ pub struct HALResources<B: Backend> {
     format: Format,
     submission_complete_fence: B::Fence,
     rendering_complete_semaphore: B::Semaphore,
-    vertex_buffer: VertexBuffer<B>,
+    vertex_buffer: VertexBuffer<B>, // This will be one big buffer containing everything in the Scene, and we will have multiple descriptors which point to this buffer but with different sizes and offsets
+                                    //vb_descriptors: Vec<Descriptor> // <- like this
 }
 
 impl HALResources<ThermiteBackend> {
-    /// Queries the capabilities of the window Surface and recreates the swapchain from those capabilities
-    pub fn recreate_swapchain(&mut self, extent: Extent2D) -> Result<Extent2D, CreationError> {
+    /// Queries the capabilities of the window Surface and recreates the swapchain from those capabilities, and returns the resulting `Extent2D`
+    pub fn recreate_swapchain(&mut self, extent: Extent2D) -> Result<Extent2D, HALError> {
         let capabilities = self.surface.capabilities(&self.adapter.physical_device);
         let mut swapchain_config = SwapchainConfig::from_caps(&capabilities, self.format, extent);
-        // This seems to fix some fullscreen slowdown on macOS.
+        // *NOTE: This seems to fix some fullscreen slowdown on macOS.
         if capabilities.image_count.contains(&3) {
             swapchain_config.image_count = 3;
         }
@@ -66,10 +159,8 @@ impl HALResources<ThermiteBackend> {
         Ok(extent)
     }
 
-    pub unsafe fn reset_command_pool(
-        &mut self,
-        render_timeout_ns: u64,
-    ) -> Result<(), OomOrDeviceLost> {
+    /// Waits for the command pool to finish submission via fences, and resets it
+    pub unsafe fn reset_command_pool(&mut self, render_timeout_ns: u64) -> Result<(), HALError> {
         use gfx_hal::pool::CommandPool;
         self.logical_device
             .wait_for_fence(&self.submission_complete_fence, render_timeout_ns)?;
@@ -79,33 +170,41 @@ impl HALResources<ThermiteBackend> {
         Ok(())
     }
 
+    /// Acquires a new image from the swapchain for rendering
     pub unsafe fn acquire_image(
         &mut self,
         acquire_timeout_ns: u64,
-    ) -> Result<ThermiteSwapchainImage, AcquireError> {
+    ) -> Result<ThermiteSwapchainImage, HALError> {
         // Map the result tuple to just the swapchain image, because that's what we want
-        self.surface.acquire_image(acquire_timeout_ns).map(|v| v.0)
+        match self.surface.acquire_image(acquire_timeout_ns) {
+            Ok(img_tuple) => Ok(img_tuple.0),
+            Err(err) => Err(HALError::AcquireError(err)),
+        }
     }
 
+    /// Creates a new framebuffer
     pub unsafe fn create_framebuffer(
         &self,
         surface_image: &ThermiteSwapchainImage,
         surface_extent: Extent2D,
-    ) -> Result<ThermiteFramebuffer, OutOfMemory> {
+    ) -> Result<ThermiteFramebuffer, HALError> {
         use gfx_hal::image::Extent;
         use std::borrow::Borrow;
         let render_pass = &self.render_passes[0];
-        self.logical_device.create_framebuffer(
-            render_pass,
-            vec![surface_image.borrow()],
-            Extent {
-                width: surface_extent.width,
-                height: surface_extent.height,
-                depth: 1,
-            },
-        )
+        self.logical_device
+            .create_framebuffer(
+                render_pass,
+                vec![surface_image.borrow()],
+                Extent {
+                    width: surface_extent.width,
+                    height: surface_extent.height,
+                    depth: 1,
+                },
+            )
+            .map_err(|e| HALError::CreationError(e.into()))
     }
 
+    /// Creates a viewport from the given surface extent
     pub fn viewport(&self, surface_extent: Extent2D) -> Viewport {
         Viewport {
             rect: Rect {
@@ -118,6 +217,7 @@ impl HALResources<ThermiteBackend> {
         }
     }
 
+    /// Records commands to be flushed from the command buffer to the GPU
     pub unsafe fn record_cmds_for_submission(
         &mut self,
         framebuffer: &ThermiteFramebuffer,
@@ -165,6 +265,7 @@ impl HALResources<ThermiteBackend> {
         self.command_buffer.finish()
     }
 
+    /// Submits all commands in the command buffer and presents the surface, and returns whether or not the operation was successful
     pub unsafe fn submit_cmds(&mut self, surface_image: ThermiteSwapchainImage) -> bool {
         use gfx_hal::queue::{CommandQueue, Submission};
         let submission = Submission {
@@ -181,6 +282,7 @@ impl HALResources<ThermiteBackend> {
         result.is_err()
     }
 
+    /// Destroys the given framebuffer
     pub unsafe fn destroy_framebuffer(&mut self, framebuffer: ThermiteFramebuffer) {
         self.logical_device.destroy_framebuffer(framebuffer)
     }
@@ -194,85 +296,13 @@ unsafe fn push_constant_bytes<T>(push_constants: &T) -> &[u32] {
     std::slice::from_raw_parts(start_ptr, size_in_u32s)
 }
 
-// TODO (HALState): Error handling &| propagation, doc comments, general cleanup, maybe some function separation
+/// The Hardware Abstraction Layer state, manages all low-level graphics resources and provides mid-level API
 pub struct HALState {
     pub resources: ManuallyDrop<HALResources<ThermiteBackend>>,
 }
 
-#[derive(Debug)]
-pub enum HALError {
-    UnsupportedBackend,
-    SurfaceCreationError(gfx_hal::window::InitError),
-    AdapterError {
-        message: String,
-        inner: Option<gfx_hal::device::CreationError>,
-    },
-    OutOfMemory(gfx_hal::device::OutOfMemory),
-    ShaderError(crate::shaders::shader::ShaderError),
-    PipelineError(gfx_hal::pso::CreationError),
-    ResourceError(thermite_core::resources::ResourceError),
-}
-
-impl From<thermite_core::resources::ResourceError> for HALError {
-    fn from(error: thermite_core::resources::ResourceError) -> Self {
-        HALError::ResourceError(error)
-    }
-}
-
-impl From<gfx_hal::window::InitError> for HALError {
-    fn from(error: gfx_hal::window::InitError) -> Self {
-        HALError::SurfaceCreationError(error)
-    }
-}
-
-impl From<gfx_hal::device::OutOfMemory> for HALError {
-    fn from(error: gfx_hal::device::OutOfMemory) -> Self {
-        HALError::OutOfMemory(error)
-    }
-}
-
-impl From<crate::shaders::shader::ShaderError> for HALError {
-    fn from(error: crate::shaders::shader::ShaderError) -> Self {
-        HALError::ShaderError(error)
-    }
-}
-
-impl From<gfx_hal::pso::CreationError> for HALError {
-    fn from(error: gfx_hal::pso::CreationError) -> Self {
-        HALError::PipelineError(error)
-    }
-}
-
-impl std::fmt::Display for HALError {
-    fn fmt(&self, fmt: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            HALError::UnsupportedBackend => write!(fmt, "{:?}", self),
-            HALError::SurfaceCreationError(err) => write!(fmt, "{:?}: {}", self, err),
-            HALError::AdapterError { message, inner } => {
-                write!(fmt, "{:?}: {} => {:?}", self, message, inner)
-            }
-            HALError::OutOfMemory(err) => write!(fmt, "{:?}: {}", self, err),
-            HALError::ShaderError(err) => write!(fmt, "{:?}: {}", self, err),
-            HALError::PipelineError(err) => write!(fmt, "{:?}: {}", self, err),
-            HALError::ResourceError(err) => write!(fmt, "{:?}: {}", self, err),
-        }
-    }
-}
-
-impl std::error::Error for HALError {
-    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
-        match self {
-            HALError::SurfaceCreationError(err) => Some(err),
-            HALError::OutOfMemory(err) => Some(err),
-            HALError::ShaderError(err) => Some(err),
-            HALError::PipelineError(err) => Some(err),
-            HALError::ResourceError(err) => Some(err),
-            _ => None,
-        }
-    }
-}
-
 impl HALState {
+    /// Create a new Hardware Abstraction Layer State for the given window
     pub fn new(window: &impl HasRawWindowHandle) -> Result<Self, HALError> {
         let (instance, surface, adapter) = {
             let instance = ThermiteInstance::create("Thermite GFX", 1)
@@ -287,7 +317,7 @@ impl HALState {
                     })
                 })
                 .ok_or(HALError::AdapterError {
-                    message: String::from("Couldn't find a graphical adapter!"),
+                    message: String::from("Couldn't find a suitable graphical adapter!"),
                     inner: None,
                 })?;
             (instance, surface, adapter)
@@ -443,7 +473,7 @@ impl Drop for HALState {
     }
 }
 
-// TODO: Comments / docstrings
+/// Create the graphics pipeline
 unsafe fn make_pipeline<ThermiteBackend>(
     logical_device: &ThermiteDevice,
     render_pass: &ThermiteRenderPass,

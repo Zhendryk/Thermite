@@ -13,7 +13,7 @@ impl Mesh {
     pub fn new(res: &Resource, filename: &str) -> Result<Self, ResourceError> {
         let binary_data = res.load_to_bytes(filename, false)?;
         let vertex_data: Vec<Vertex> = bincode::deserialize(&binary_data)
-            .map_err(|e| ResourceError::DeserializationFailure)?;
+            .map_err(|_| ResourceError::DeserializationFailure(filename.to_string()))?;
         let vertex_count = vertex_data.len();
         Ok(Mesh {
             vertex_count: vertex_count,

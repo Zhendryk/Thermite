@@ -9,24 +9,31 @@ use std::{
 #[derive(Debug)]
 pub enum ResourceError {
     Io(io::Error),
-    FileContainsNil,
-    FailedToGetExePath,
-    DeserializationFailure,
+    FileContainsNil(String),
+    FailedToGetExePath(String),
+    DeserializationFailure(String),
+}
+
+impl From<io::Error> for ResourceError {
+    fn from(error: io::Error) -> Self {
+        ResourceError::Io(error)
+    }
 }
 
 impl std::fmt::Display for ResourceError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{:?}", self)
+    fn fmt(&self, fmt: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            ResourceError::Io(error) => write!(fmt, "{:?}: {:?}", self, error),
+            ResourceError::FileContainsNil(filename) => write!(fmt, "{:?}: {}", self, filename),
+            ResourceError::FailedToGetExePath(filename) => write!(fmt, "{:?}: {}", self, filename),
+            ResourceError::DeserializationFailure(filename) => {
+                write!(fmt, "{:?}: {}", self, filename)
+            }
+        }
     }
 }
 
 impl std::error::Error for ResourceError {}
-
-impl From<io::Error> for ResourceError {
-    fn from(other: io::Error) -> Self {
-        ResourceError::Io(other)
-    }
-}
 
 /// A `Resource` which points to and loads from a directory containing resources for the application
 pub struct Resource {
@@ -48,12 +55,13 @@ impl Resource {
     /// - `Err`: A `ResourceError` describing the various IO errors that may have occurred during creation of the `Resource`.
     pub fn new(rel_path: &Path) -> Result<Resource, ResourceError> {
         // Grab the filename, or return if there's an error (? on Result)
-        let exe_filename =
-            std::env::current_exe().map_err(|_| ResourceError::FailedToGetExePath)?;
+        let path_str: String = rel_path.to_str().unwrap_or("invalid_utf8_path").to_string();
+        let exe_filename = std::env::current_exe()
+            .map_err(|_| ResourceError::FailedToGetExePath(path_str.clone()))?;
         // Grab the path to the executable via .parent(), checking for errors
         let exe_path = exe_filename
             .parent()
-            .ok_or(ResourceError::FailedToGetExePath)?;
+            .ok_or(ResourceError::FailedToGetExePath(path_str))?;
         // Return our resource
         Ok(Resource {
             root_path: exe_path.join(rel_path),
@@ -84,7 +92,7 @@ impl Resource {
         if check_for_interior_null {
             // Check the file for interior 0 (null) bytes
             if buffer.iter().find(|i| **i == 0).is_some() {
-                return Err(ResourceError::FileContainsNil);
+                return Err(ResourceError::FileContainsNil(resource_name.to_string()));
             }
         }
         Ok(buffer)

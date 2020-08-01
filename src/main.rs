@@ -3,7 +3,7 @@ use log::{debug, error, info, trace, warn};
 use simple_logger;
 
 use thermite_gfx::{
-    gfx_hal::window::Extent2D, rendering::hal_state::HALState, shaders::shader::PushConstants,
+    gfx_hal::window::Extent2D, hal::hal_state::HALState, shaders::shader::PushConstants,
 };
 use thermite_ui::window;
 

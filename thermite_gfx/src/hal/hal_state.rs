@@ -1,4 +1,5 @@
-use crate::rendering::mesh::Mesh;
+use crate::primitives::buffer::VertexBuffer;
+use crate::resources::mesh::Mesh;
 use crate::shaders::shader::{PushConstants, Shader};
 use backend::{
     self as ThermiteGfx, Backend as ThermiteBackend, Device as ThermiteDevice,
@@ -43,12 +44,11 @@ pub struct HALResources<B: Backend> {
     format: Format,
     submission_complete_fence: B::Fence,
     rendering_complete_semaphore: B::Semaphore,
-    vertex_buffer_memory: B::Memory,
-    vertex_buffer: B::Buffer,
-    mesh: Mesh,
+    vertex_buffer: VertexBuffer<B>,
 }
 
 impl HALResources<ThermiteBackend> {
+    /// Queries the capabilities of the window Surface and recreates the swapchain from those capabilities
     pub fn recreate_swapchain(&mut self, extent: Extent2D) -> Result<Extent2D, CreationError> {
         let capabilities = self.surface.capabilities(&self.adapter.physical_device);
         let mut swapchain_config = SwapchainConfig::from_caps(&capabilities, self.format, extent);
@@ -133,7 +133,10 @@ impl HALResources<ThermiteBackend> {
         self.command_buffer.set_scissors(0, &[viewport.rect]);
         self.command_buffer.bind_vertex_buffers(
             0,
-            vec![(&self.vertex_buffer, gfx_hal::buffer::SubRange::WHOLE)],
+            vec![(
+                &self.vertex_buffer.data.buffer, // TODO: impl<B: gfx_hal::Backend> std::borrow::Borrow<B::Buffer> for VertexBuffer<B> for implicit borrow to inner member
+                gfx_hal::buffer::SubRange::WHOLE,
+            )],
         );
         self.command_buffer.begin_render_pass(
             &self.render_passes[0],
@@ -156,7 +159,7 @@ impl HALResources<ThermiteBackend> {
                 push_constant_bytes(teapot),
             );
             self.command_buffer
-                .draw(0..self.mesh.vertex_count as u32, 0..1);
+                .draw(0..self.vertex_buffer.count as u32, 0..1);
         }
         self.command_buffer.end_render_pass();
         self.command_buffer.finish()
@@ -340,8 +343,9 @@ impl HALState {
             .expect("Couldn't get mesh resource");
         let teapot_mesh =
             Mesh::new(&mesh_res, "teapot_mesh.bin").expect("Couldn't load teapot mesh!");
-        let (vertex_buffer_memory, vertex_buffer) =
-            teapot_mesh.vertex_buffer::<ThermiteBackend>(&logical_device, &adapter.physical_device);
+        let vertex_buffer =
+            VertexBuffer::from_mesh(teapot_mesh, &logical_device, &adapter.physical_device)
+                .expect("Couldn't create vbo for teapot mesh");
         let hal_state = HALState {
             resources: ManuallyDrop::new(HALResources::<ThermiteBackend> {
                 instance: instance,
@@ -357,9 +361,7 @@ impl HALState {
                 format: surface_color_format,
                 submission_complete_fence: submission_complete_fence,
                 rendering_complete_semaphore: rendering_complete_semaphore,
-                vertex_buffer_memory,
-                vertex_buffer,
-                mesh: teapot_mesh,
+                vertex_buffer: vertex_buffer,
             }),
         };
         Ok(hal_state)
@@ -384,13 +386,11 @@ impl Drop for HALState {
                 pipelines,
                 submission_complete_fence,
                 rendering_complete_semaphore,
-                vertex_buffer_memory,
                 vertex_buffer,
-                mesh,
             } = ManuallyDrop::take(&mut self.resources);
             let _ = logical_device.wait_idle();
-            logical_device.free_memory(vertex_buffer_memory);
-            logical_device.destroy_buffer(vertex_buffer);
+            logical_device.free_memory(vertex_buffer.data.memory);
+            logical_device.destroy_buffer(vertex_buffer.data.buffer);
             logical_device.destroy_semaphore(rendering_complete_semaphore);
             logical_device.destroy_fence(submission_complete_fence);
             for pipeline in pipelines {
@@ -488,7 +488,7 @@ unsafe fn make_pipeline<ThermiteBackend>(
         blend: Some(BlendState::ALPHA),
     });
     // Vertex buffer stuff
-    use crate::rendering::mesh::Vertex;
+    use crate::primitives::vertex::Vertex;
     use gfx_hal::pso::{AttributeDesc, Element, VertexBufferDesc, VertexInputRate};
     pipeline_desc.vertex_buffers.push(VertexBufferDesc {
         binding: 0,

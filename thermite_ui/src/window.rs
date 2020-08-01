@@ -14,7 +14,6 @@ pub struct Window {
     physical_size: PhysicalSize<u32>,
     dpi: f64,
     event_loop: Option<EventLoop<()>>,
-    should_close: bool,
 }
 
 // TODO: Try and see if we can encapsulate user input related to the window into
@@ -45,7 +44,6 @@ impl Window {
             physical_size: physical_size,
             dpi: dpi,
             event_loop: Option::from(event_loop),
-            should_close: false,
         })
     }
 
@@ -84,11 +82,6 @@ impl Window {
         self.event_loop
             .take()
             .expect("Could not retreive the window's event loop!")
-    }
-
-    /// Returns a reference to whether or not this `Window` has been signaled to close
-    pub fn should_close(&self) -> &bool {
-        &self.should_close
     }
 }
 

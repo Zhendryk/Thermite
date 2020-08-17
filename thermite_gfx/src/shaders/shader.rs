@@ -24,7 +24,7 @@ pub fn make_transform(translate: [f32; 3], angle: f32, scale: f32) -> [[f32; 4];
 /// Errors returned by this module, related to operations with `Shader`s
 #[derive(Debug)]
 pub enum ShaderError {
-    ResourceLoadError(thermite_core::resources::ResourceError),
+    ResourceLoadError(thermite_core::tools::resources::ResourceError),
     CannotDetermineShaderTypeForResource(String),
     UnsupportedShaderType(String),
     CompileError(gfx_hal::device::ShaderError),
@@ -36,8 +36,8 @@ pub enum ShaderError {
     ShaderModuleNotCompiled,
 }
 
-impl From<thermite_core::resources::ResourceError> for ShaderError {
-    fn from(error: thermite_core::resources::ResourceError) -> Self {
+impl From<thermite_core::tools::resources::ResourceError> for ShaderError {
+    fn from(error: thermite_core::tools::resources::ResourceError) -> Self {
         ShaderError::ResourceLoadError(error)
     }
 }
@@ -81,7 +81,7 @@ pub struct Shader<B: gfx_hal::Backend> {
 impl<B: gfx_hal::Backend> Shader<B> {
     /// Create a new `Shader` of type `stage` with the given `entry` and `specialization` residing inside the given `Resource`
     pub fn new(
-        res: &thermite_core::resources::Resource,
+        res: &thermite_core::tools::resources::Resource,
         filename: &str,
         stage: gfx_hal::pso::ShaderStageFlags,
         entry: &str,
@@ -158,7 +158,7 @@ impl<'a, B: gfx_hal::Backend> ShaderSet<B> {
     /// **NOTE:** All shader files in a single set must be named `set_name.extension`, and have the same entrypoint: `entry`
     pub unsafe fn new(
         set_name: &str,
-        res: &thermite_core::resources::Resource,
+        res: &thermite_core::tools::resources::Resource,
         using_stages: gfx_hal::pso::ShaderStageFlags,
         entry: &'a str, // TODO: Should this be a vec, matched in size to num of stage flags?
         logical_device: &B::Device,

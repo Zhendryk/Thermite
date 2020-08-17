@@ -3,9 +3,8 @@ use log::{debug, error, info, trace, warn};
 use simple_logger;
 
 use thermite_gfx::{
-    gfx_hal::window::Extent2D, hal::hal_state::HALState, shaders::shader::PushConstants,
+    gfx_hal::window::Extent2D, hal::hal_state::HALState, shaders::shader::PushConstants, window,
 };
-use thermite_ui::window;
 
 fn main() {
     simple_logger::init().expect("Couldn't create simple logger");
@@ -18,7 +17,7 @@ fn main() {
     };
     let start_time = std::time::Instant::now();
     window.event_loop().run(move |event, _, control_flow| {
-        use thermite_ui::winit::{
+        use thermite_gfx::winit::{
             event::{DeviceEvent, Event, VirtualKeyCode, WindowEvent},
             event_loop::ControlFlow,
         };

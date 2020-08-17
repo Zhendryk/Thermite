@@ -14,7 +14,7 @@ use gfx_hal::{
 };
 use raw_window_handle::HasRawWindowHandle;
 use std::mem::ManuallyDrop;
-use thermite_core::resources;
+use thermite_core::tools::resources;
 
 type ThermiteRenderPass = <ThermiteBackend as Backend>::RenderPass;
 type ThermitePipelineLayout = <ThermiteBackend as Backend>::PipelineLayout;
@@ -36,7 +36,7 @@ pub enum HALError {
     OutOfMemory(gfx_hal::device::OomOrDeviceLost),
     ShaderError(crate::shaders::shader::ShaderError),
     PipelineError(gfx_hal::pso::CreationError),
-    ResourceError(thermite_core::resources::ResourceError),
+    ResourceError(thermite_core::tools::resources::ResourceError),
     AcquireError(gfx_hal::window::AcquireError),
 }
 
@@ -76,8 +76,8 @@ impl From<gfx_hal::pso::CreationError> for HALError {
     }
 }
 
-impl From<thermite_core::resources::ResourceError> for HALError {
-    fn from(error: thermite_core::resources::ResourceError) -> Self {
+impl From<thermite_core::tools::resources::ResourceError> for HALError {
+    fn from(error: thermite_core::tools::resources::ResourceError) -> Self {
         HALError::ResourceError(error)
     }
 }

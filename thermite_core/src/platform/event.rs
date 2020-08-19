@@ -4,10 +4,12 @@ use std::boxed::Box;
 // TODO: Compiler-optional logging
 // TODO: Compiler-optional profiling
 // TODO: Non-blocking event handling (queues)
+// TODO: Interceptive handling (if an overlay gets an event, handle it and then nothing else gets a chance to, etc.)
 
 pub trait Subscriber {
     fn identifier(&self) -> u32;
-    fn on_event(&self, event: &dyn Event);
+    // TODO: Figure out how to get this to work with match statements nicely
+    fn on_event(&self, event: &dyn Event) -> bool;
 }
 
 pub trait Publisher {
@@ -17,8 +19,8 @@ pub trait Publisher {
 }
 
 pub trait Event {
-    fn category(&self) -> &EventCategory;
-    fn to_str(&self) -> &str;
+    fn category(&self) -> EventCategory;
+    fn to_string(&self) -> String;
 }
 
 #[derive(Debug, Eq, PartialEq, Hash)]
@@ -90,8 +92,8 @@ impl EventBus {
     }
 
     /// Dispatches the given `Event` to all tasks subscribed to that `Event`'s `EventCategory`
-    pub(crate) fn dispatch_event(&self, event: &dyn Event) {
-        match self.sinks.get(event.category()) {
+    pub fn dispatch_event(&self, event: &dyn Event) {
+        match self.sinks.get(&event.category()) {
             Some(subscriber_list) => {
                 for subscriber in subscriber_list.iter() {
                     println!(
@@ -99,7 +101,10 @@ impl EventBus {
                         event.category(),
                         subscriber.identifier()
                     );
-                    subscriber.on_event(event);
+                    let handled = subscriber.on_event(event);
+                    if handled {
+                        break;
+                    }
                 }
             }
             _ => (),
@@ -113,12 +118,13 @@ impl EventBus {
 //     fn identifier(&self) -> u32 {
 //         1
 //     }
-//     fn on_event(&self, event: &dyn Event) {
+//     fn on_event(&self, event: &dyn Event) -> bool {
 //         println!(
 //             "Subscriber({}) received event: {}",
 //             self.identifier(),
 //             event.to_str()
 //         );
+//         false
 //     }
 // }
 
@@ -129,8 +135,8 @@ impl EventBus {
 // EXAMPLE EVENT
 // pub struct TestEvent {}
 // impl Event for TestEvent {
-//     fn category(&self) -> &EventCategory {
-//         &EventCategory::Test
+//     fn category(&self) -> EventCategory {
+//         EventCategory::Test
 //     }
 //     fn to_str(&self) -> &str {
 //         "TestEvent<Category=Test>"

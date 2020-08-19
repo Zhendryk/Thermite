@@ -3,12 +3,12 @@ use winit::{
     dpi::{LogicalSize, PhysicalSize},
     error::OsError,
     event_loop::EventLoop,
-    window::WindowBuilder,
+    window::{Window as WinitWindow, WindowBuilder, WindowId},
 };
 
 #[derive(Debug)]
 pub struct Window {
-    handle: winit::window::Window,
+    handle: WinitWindow,
     title: String,
     logical_size: LogicalSize<u32>,
     physical_size: PhysicalSize<u32>,
@@ -43,17 +43,18 @@ impl Window {
             logical_size: logical_size,
             physical_size: physical_size,
             dpi: dpi,
+            // event_loop: event_loop,
             event_loop: Option::from(event_loop),
         })
     }
 
     /// Returns this `Window`'s unique identifier
-    pub fn id(&self) -> winit::window::WindowId {
+    pub fn id(&self) -> WindowId {
         self.handle.id()
     }
 
     /// Returns a reference to the winit handle for this `Window`
-    pub fn handle(&self) -> &winit::window::Window {
+    pub fn handle(&self) -> &WinitWindow {
         &self.handle
     }
 
@@ -63,12 +64,12 @@ impl Window {
     }
 
     /// Returns a reference to the logical (physical pixels scaled to dpi) dimensions of this `Window`
-    pub fn logical_size(&self) -> &winit::dpi::LogicalSize<u32> {
+    pub fn logical_size(&self) -> &LogicalSize<u32> {
         &self.logical_size
     }
 
     /// Returns a reference to the physical (actual number of pixels) dimensions of this `Window`
-    pub fn physical_size(&self) -> &winit::dpi::PhysicalSize<u32> {
+    pub fn physical_size(&self) -> &PhysicalSize<u32> {
         &self.physical_size
     }
 
@@ -78,7 +79,7 @@ impl Window {
     }
 
     /// Returns the `EventLoop` associated with this `Window`
-    pub fn event_loop(&mut self) -> winit::event_loop::EventLoop<()> {
+    pub fn event_loop(&mut self) -> EventLoop<()> {
         self.event_loop
             .take()
             .expect("Could not retreive the window's event loop!")
@@ -92,10 +93,7 @@ impl Default for Window {
     /// If a `OsError` occurs.
     fn default() -> Self {
         Self::new(
-            format!(
-                "Thermite Engine - thermite_ui v{}",
-                env!("CARGO_PKG_VERSION")
-            ),
+            format!("Thermite Engine v{}", env!("CARGO_PKG_VERSION")),
             [800, 600],
         )
         .expect("Could not create a window!")

@@ -51,7 +51,8 @@ impl Application {
         self.window
             .event_loop()
             .run(move |event, _, control_flow| match event {
-                WinitEvent::UserEvent(event) => (),
+                WinitEvent::NewEvents(start_cause) => (), // Pre-event handling code
+                WinitEvent::UserEvent(event) => (),       // Custom events
                 WinitEvent::DeviceEvent { device_id, event } => (),
                 WinitEvent::WindowEvent { window_id, event } => match event {
                     // TODO: Would be nice to not have a monolithic handler...
@@ -121,13 +122,12 @@ impl Application {
                     }
                     _ => (),
                 },
-                WinitEvent::NewEvents(start_cause) => (),
-                WinitEvent::MainEventsCleared => (), //win.lock().unwrap().handle().request_redraw(), // TODO: <-- figure this out!
-                WinitEvent::RedrawEventsCleared => (),
-                WinitEvent::RedrawRequested(window_id) => (),
-                WinitEvent::LoopDestroyed => (),
-                WinitEvent::Resumed => (),
-                WinitEvent::Suspended => (),
+                WinitEvent::MainEventsCleared => (), // Continuous dynamic graphics rendering (loop "main body")
+                WinitEvent::RedrawRequested(window_id) => (), // Static graphics rendering
+                WinitEvent::RedrawEventsCleared => (), // Rendering cleanup
+                WinitEvent::Resumed => (),           // Application resumed
+                WinitEvent::Suspended => (),         // Application suspended
+                WinitEvent::LoopDestroyed => (),     // Last event to be emitted, period.
             });
     }
 }

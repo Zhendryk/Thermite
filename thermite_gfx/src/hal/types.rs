@@ -25,7 +25,7 @@ pub enum HALError {
     OutOfMemory(gfx_hal::device::OomOrDeviceLost),
     ShaderError(crate::shaders::shader::ShaderError),
     PipelineError(gfx_hal::pso::CreationError),
-    ResourceError(thermite_core::resources::ResourceError),
+    ResourceError(thermite_core::tools::resources::ResourceError),
     AcquireError(gfx_hal::window::AcquireError),
     GPUNotFound,
     CannotAddGPU,
@@ -67,8 +67,8 @@ impl From<gfx_hal::pso::CreationError> for HALError {
     }
 }
 
-impl From<thermite_core::resources::ResourceError> for HALError {
-    fn from(error: thermite_core::resources::ResourceError) -> Self {
+impl From<thermite_core::tools::resources::ResourceError> for HALError {
+    fn from(error: thermite_core::tools::resources::ResourceError) -> Self {
         HALError::ResourceError(error)
     }
 }

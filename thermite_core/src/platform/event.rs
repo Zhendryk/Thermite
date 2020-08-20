@@ -1,21 +1,22 @@
+// !NOTE: Heavily inspired by Lakelezz's hey_listen: https://github.com/Lakelezz/hey_listen
 use crate::input::{keyboard::KeyboardEvent, mouse::MouseEvent};
 use std::collections::HashMap;
 use std::hash::Hash;
 use std::sync::{Arc, RwLock, Weak};
-// NOTE: Heavily inspired by Lakelezz's hey_listen: https://github.com/Lakelezz/hey_listen
 
-// !Wrapper enum required for generic handling and pattern matching of all structures implementing Event
-#[derive(Debug, Eq, PartialEq, Hash, Clone)]
-pub enum ThermiteEvent {
-    Keyboard(KeyboardEvent),
-    Mouse(MouseEvent),
+/// A generic Event, meant to be implemented on an enum by the consumer
+///
+/// `T` is another enum describing the different "categories" the event can belong to, for subscription purposes
+pub trait Event<T>
+where
+    T: Eq + PartialEq + Hash + Clone + Send + Sync + 'static,
+{
+    fn category(&self) -> T;
 }
-unsafe impl Send for ThermiteEvent {}
-unsafe impl Sync for ThermiteEvent {}
 
 /// A `Subscriber` is one who subscribes to and receives events of type `E`.
 ///
-/// `E` is meant to be implemented by the module consumer as an enum with the appropriate traits.
+/// `E` is meant to be implemented by the module consumer as an enum with the appropriate traits. See `Event`.
 pub trait Subscriber<E>
 where
     E: Eq + PartialEq + Hash + Clone + Send + Sync + 'static,
@@ -23,14 +24,15 @@ where
     fn on_event(&self, event: &E) -> BusRequest;
 }
 
-/// A `Publisher` is one who publishes events of type `E`, which are passed to `Subscriber`s via the `EventBus`.
+/// A `Publisher` is one who publishes events `E` of type `T`, which are passed to `Subscriber`s via the `EventBus`.
 ///
-/// `E` is meant to be implemented by the module consumer as an enum with the appropriate traits.
-pub trait Publisher<E>
+/// `E` is meant to be implemented by the module consumer as an enum with the appropriate traits. See `Event`.
+pub trait Publisher<T, E>
 where
-    E: Eq + PartialEq + Hash + Clone + Send + Sync + 'static,
+    T: Eq + PartialEq + Hash + Clone + Send + Sync + 'static,
+    E: Event<T> + Eq + PartialEq + Hash + Clone + Send + Sync + 'static,
 {
-    fn publish_event(&self, event: &E, bus: &mut EventBus<E>) {
+    fn publish_event(&self, event: &E, bus: &mut EventBus<T, E>) {
         bus.dispatch_event(event);
     }
 }
@@ -92,16 +94,18 @@ where
 }
 
 /// Datastructure responsible for dispatching events from `Publisher`s to `Subscriber`s
-pub struct EventBus<E>
+pub struct EventBus<T, E>
 where
-    E: Eq + PartialEq + Hash + Clone + Send + Sync + 'static,
+    T: Eq + PartialEq + Hash + Clone + Send + Sync + 'static,
+    E: Event<T> + Eq + PartialEq + Hash + Clone + Send + Sync + 'static,
 {
-    sink: HashMap<E, Vec<Weak<RwLock<dyn Subscriber<E>>>>>,
+    sink: HashMap<T, Vec<Weak<RwLock<dyn Subscriber<E>>>>>,
 }
 
-impl<E> Default for EventBus<E>
+impl<T, E> Default for EventBus<T, E>
 where
-    E: Eq + PartialEq + Hash + Clone + Send + Sync + 'static,
+    T: Eq + PartialEq + Hash + Clone + Send + Sync + 'static,
+    E: Event<T> + Eq + PartialEq + Hash + Clone + Send + Sync + 'static,
 {
     fn default() -> Self {
         Self {
@@ -110,24 +114,27 @@ where
     }
 }
 
-impl<E> EventBus<E>
+impl<T, E> EventBus<T, E>
 where
-    E: Eq + PartialEq + Hash + Clone + Send + Sync + 'static,
+    T: Eq + PartialEq + Hash + Clone + Send + Sync + 'static,
+    E: Event<T> + Eq + PartialEq + Hash + Clone + Send + Sync + 'static,
 {
     /// Adds the given subscriber to a subscriber list to receive published messages of the given event variant
     pub fn subscribe<S: Subscriber<E> + 'static>(
         &mut self,
         subscriber: &Arc<RwLock<S>>,
-        to_variant: E,
+        to_category: T,
     ) {
-        if let Some(subscriber_list) = self.sink.get_mut(&to_variant) {
+        if let Some(subscriber_list) = self.sink.get_mut(&to_category) {
+            // We have an existing subscriber list for this category
             subscriber_list.push(Arc::downgrade(
                 &(subscriber.clone() as Arc<RwLock<dyn Subscriber<E>>>),
             ));
             return;
         }
+        // No subscriber list exists yet for this category, insert one
         self.sink.insert(
-            to_variant,
+            to_category,
             vec![Arc::downgrade(
                 &(subscriber.clone() as Arc<RwLock<dyn Subscriber<E>>>),
             )],
@@ -138,19 +145,56 @@ where
 
     // TODO: unsubscribe_all
 
-    /// Dispatches the given event to all subscribers to that event's variant
+    /// Dispatches the given event to all subscribers of that event's category
     pub fn dispatch_event(&mut self, event: &E) {
-        if let Some(subscriber_list) = self.sink.get_mut(event) {
+        // Grab our list of subscribers for this event's category, if one exists
+        if let Some(subscriber_list) = self.sink.get_mut(&event.category()) {
+            // For every subscriber in that list, handle the event after which that subscriber will
+            // tell the bus whether or not it should propagate the event to other subscribers, among other actions
+            // TODO: In order for this to make sense, our subscribers need to be ordered in a fashion that makes sense for event propagation (layers)
             execute_bus_requests(subscriber_list, |weak_subscriber| {
+                // Upgrade our weak rc pointer to a full Arc, obtain a write lock and handle the event
                 if let Some(subscriber_arc) = weak_subscriber.upgrade() {
                     let subscriber = subscriber_arc
-                        .write() // TODO: Maybe try_write() instead for non-blocking?
+                        .write() // TODO: Maybe try_write() instead for non-thread-blocking behavior?
                         .expect("Couldn't write to subscriber");
                     subscriber.on_event(event)
                 } else {
+                    // No subscriber to act on, so do nothing for this iteration
                     BusRequest::NoActionNeeded
                 }
             });
         }
     }
 }
+
+// ================================================ Thermite-specific Datastructures ================================================ //
+// ! In order to give a category to our events
+// ! This would normally be provided by the consumer crate
+#[derive(Debug, Eq, PartialEq, Hash, Clone)]
+pub enum ThermiteEventType {
+    Input,
+    Window,
+}
+unsafe impl Send for ThermiteEventType {}
+unsafe impl Sync for ThermiteEventType {}
+
+// ! Wrapper enum required for generic handling and pattern matching of all structures implementing Event
+// ! This would normally be provided by the consumer crate
+#[derive(Debug, Eq, PartialEq, Hash, Clone)]
+pub enum ThermiteEvent {
+    Keyboard(KeyboardEvent),
+    Mouse(MouseEvent),
+}
+unsafe impl Send for ThermiteEvent {}
+unsafe impl Sync for ThermiteEvent {}
+impl Event<ThermiteEventType> for ThermiteEvent {
+    fn category(&self) -> ThermiteEventType {
+        match self {
+            ThermiteEvent::Keyboard(_) => ThermiteEventType::Input,
+            ThermiteEvent::Mouse(_) => ThermiteEventType::Input,
+            // And more...
+        }
+    }
+}
+// ================================================ END Thermite-specific Datastructures ================================================ //

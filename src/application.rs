@@ -1,53 +1,75 @@
 use log::info;
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, Mutex, RwLock};
 use thermite_core::{
     input::{keyboard::KeyboardEvent, mouse::MouseEvent},
-    platform::event::{EventBus, ThermiteEvent},
+    platform::event::{
+        BusRequest, EventBus, Publisher, Subscriber, ThermiteEvent, ThermiteEventType,
+    },
     thermite_logging,
 };
+use thermite_gfx::window::Window;
 use thermite_gfx::winit::{
     event::{ElementState, Event as WinitEvent, WindowEvent},
     event_loop::ControlFlow,
 };
-use thermite_gfx::{hal::hal_state::HALState, window::Window};
 
+// ============================== TEST STRUCTS ============================== //
+pub struct TestSubscriber {}
+impl Subscriber<ThermiteEvent> for TestSubscriber {
+    // ! Although we get a ThermiteEvent enum, it is guaranteed to be only of the category that we are subscribed to
+    fn on_event(&self, event: &ThermiteEvent) -> BusRequest {
+        info!("Test subscriber received event: {:?}", event);
+        BusRequest::NoActionNeeded
+    }
+}
+
+pub struct TestPublisher {}
+impl Publisher<ThermiteEventType, ThermiteEvent> for TestPublisher {}
+// ============================== END TEST STRUCTS ============================== //
+
+type ThermiteEventBus = EventBus<ThermiteEventType, ThermiteEvent>;
 // TODO: Make this a Singleton
 pub struct Application {
-    event_bus: Arc<Mutex<EventBus<ThermiteEvent>>>,
-    hal_state: HALState,
+    event_bus: Arc<Mutex<ThermiteEventBus>>,
     window: Window<ThermiteEvent>,
+    publ: Arc<Mutex<TestPublisher>>, // TODO: Figure out how to get publishers and subscribers to operate from other parts of the application
+    sub: Arc<RwLock<TestSubscriber>>,
 }
 
 impl Default for Application {
     fn default() -> Self {
-        let window = Window::default();
-        let hal_state = HALState::new(window.handle()).expect("Couldn't create HALState");
         Self {
             event_bus: Arc::new(Mutex::new(EventBus::default())),
-            hal_state: hal_state,
-            window: window,
+            window: Window::default(),
+            publ: Arc::new(Mutex::new(TestPublisher {})),
+            sub: Arc::new(RwLock::new(TestSubscriber {})),
         }
     }
 }
 
 impl Application {
     pub fn new(name: &str, size: [u32; 2]) -> Self {
-        let window = Window::new(name, size).expect("Couldn't create window");
-        let hal_state = HALState::new(window.handle()).expect("Couldn't create HALState");
         Self {
             event_bus: Arc::new(Mutex::new(EventBus::default())),
-            hal_state: hal_state,
-            window: window,
+            window: Window::new(name, size).expect("Couldn't create window"),
+            publ: Arc::new(Mutex::new(TestPublisher {})),
+            sub: Arc::new(RwLock::new(TestSubscriber {})),
         }
     }
 
     fn init(&mut self) {
         thermite_logging::init().expect("Couldn't initialize logging");
+        // Subscribe our subscriber to Input events
+        self.event_bus
+            .lock()
+            .unwrap()
+            .subscribe(&self.sub, ThermiteEventType::Input);
     }
 
     pub fn run(&mut self) {
         self.init();
-        let eb = self.event_bus.clone(); // Clone our rc pointer so the static closure can take ownership of it
+        let eb = self.event_bus.clone();
+        let publ = self.publ.clone();
         self.window
             .event_loop()
             .run(move |event, _, control_flow| match event {
@@ -55,7 +77,7 @@ impl Application {
                 WinitEvent::NewEvents(_) => (),
                 // Custom events
                 WinitEvent::UserEvent(_) => (),
-                // Events coming strait from hardware devices
+                // Events coming straight from hardware devices
                 WinitEvent::DeviceEvent { .. } => (),
                 // Events emitted by the winit window
                 WinitEvent::WindowEvent { event, .. } => match event {
@@ -64,13 +86,15 @@ impl Application {
                     WindowEvent::KeyboardInput { input, .. } => match input.state {
                         ElementState::Pressed => {
                             let evt = KeyboardEvent::KeyPressed(input.into());
-                            info!("{:?}", evt);
-                            eb.lock().unwrap().dispatch_event(&evt.into());
+                            publ.lock()
+                                .unwrap()
+                                .publish_event(&evt.into(), &mut eb.lock().unwrap());
                         }
                         ElementState::Released => {
                             let evt = KeyboardEvent::KeyReleased(input.into());
-                            info!("{:?}", evt);
-                            eb.lock().unwrap().dispatch_event(&evt.into());
+                            publ.lock()
+                                .unwrap()
+                                .publish_event(&evt.into(), &mut eb.lock().unwrap());
                         }
                     },
                     WindowEvent::ModifiersChanged(modifiers_state) => {
@@ -81,34 +105,41 @@ impl Application {
                     WindowEvent::MouseInput { state, button, .. } => match state {
                         ElementState::Pressed => {
                             let evt = MouseEvent::ButtonPressed(button);
-                            info!("{:?}", evt);
-                            eb.lock().unwrap().dispatch_event(&evt.into());
+                            publ.lock()
+                                .unwrap()
+                                .publish_event(&evt.into(), &mut eb.lock().unwrap());
                         }
                         ElementState::Released => {
                             let evt = MouseEvent::ButtonReleased(button);
-                            info!("{:?}", evt);
-                            eb.lock().unwrap().dispatch_event(&evt.into());
+                            publ.lock()
+                                .unwrap()
+                                .publish_event(&evt.into(), &mut eb.lock().unwrap());
                         }
                     },
                     WindowEvent::MouseWheel { delta, .. } => {
                         let evt = MouseEvent::Scroll(delta.into());
-                        info!("{:?}", evt);
-                        eb.lock().unwrap().dispatch_event(&evt.into());
+                        publ.lock()
+                            .unwrap()
+                            .publish_event(&evt.into(), &mut eb.lock().unwrap());
                     }
                     WindowEvent::CursorMoved { position, .. } => {
-                        let evt = MouseEvent::Motion(position.into());
-                        info!("{:?}", evt);
-                        eb.lock().unwrap().dispatch_event(&evt.into());
+                        // ! Leaving this commented out for now as it's really noisy
+                        // let evt = MouseEvent::Motion(position.into());
+                        // publ.lock()
+                        //     .unwrap()
+                        //     .publish_event(&evt.into(), &mut eb.lock().unwrap());
                     }
                     WindowEvent::CursorEntered { .. } => {
                         let evt = MouseEvent::EnteredWindow;
-                        info!("{:?}", evt);
-                        eb.lock().unwrap().dispatch_event(&evt.into());
+                        publ.lock()
+                            .unwrap()
+                            .publish_event(&evt.into(), &mut eb.lock().unwrap());
                     }
                     WindowEvent::CursorLeft { .. } => {
                         let evt = MouseEvent::LeftWindow;
-                        info!("{:?}", evt);
-                        eb.lock().unwrap().dispatch_event(&evt.into());
+                        publ.lock()
+                            .unwrap()
+                            .publish_event(&evt.into(), &mut eb.lock().unwrap());
                     }
                     _ => (),
                 },

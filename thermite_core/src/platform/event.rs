@@ -76,7 +76,7 @@ where
                 // The rest are self explanatory
                 BusRequest::Unsubscribe => {
                     // swap_remove for O(1) operation
-                    subscribers.swap_remove(idx);
+                    subscribers.swap_remove(idx); // TODO: If we move to layers, we can't arbitrarily alter the order here like this...
                 }
                 BusRequest::DoNotPropagate => {
                     return EventDispatchResult::Stopped;
@@ -99,6 +99,8 @@ where
     T: Eq + PartialEq + Hash + Clone + Send + Sync + 'static,
     E: Event<T> + Eq + PartialEq + Hash + Clone + Send + Sync + 'static,
 {
+    // We hold a std::sync::Weak (Arc which holds non-owning reference) to not prevent dropping and to avoid circular references to an Arc
+    // We can deal with subscribers that get dropped by just removing them from our map if we find they did get dropped
     sink: HashMap<T, Vec<Weak<RwLock<dyn Subscriber<E>>>>>,
 }
 

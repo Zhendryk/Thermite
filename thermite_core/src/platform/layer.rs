@@ -1,56 +1,65 @@
-// use crate::platform::event::{Publisher, Subscriber};
+use crate::platform::event::{Publisher, Subscriber};
 use std::boxed::Box;
 use std::ops::Deref;
 
-pub trait Layer /*: Publisher + Subscriber*/ {
+pub trait Layer<E: Event>: Publisher<E> + Subscriber<E> {
     fn on_attach(&self);
     fn on_detach(&self);
     fn on_update(&self);
     // TODO: Enable/Disable layer
-
-    fn identifier(&self) -> u32;
+    fn id(&self) -> u32;
     fn debug_name(&self) -> &str;
 }
 
-pub struct LayerStack {
-    layers: Vec<Box<dyn Layer>>,
+pub struct LayerStack<E: Event> {
+    layers: Vec<Box<dyn Layer<E>>>,
+    layer_boundary_idx: usize,
 }
 
-impl Default for LayerStack {
+impl<E: Event> Default for LayerStack<E> {
     fn default() -> Self {
-        LayerStack { layers: vec![] }
+        LayerStack {
+            layers: vec![],
+            layer_boundary_idx: 0,
+        }
     }
 }
 
-impl LayerStack {
-    pub fn push(&mut self, layer: Box<dyn Layer>) {
+impl<E: Event> LayerStack<E> {
+    pub fn push_layer(&mut self, layer: Box<dyn Layer<E>>) {
         layer.on_attach();
-        self.layers.push(layer);
+        self.layers.insert(self.layer_boundary_idx, layer);
+        self.layer_boundary_idx += 1;
     }
 
-    pub fn pop(&mut self) {
-        if let Some(layer) = self.layers.pop() {
-            layer.on_detach();
+    pub fn pop_layer(&mut self, layer: Box<dyn Layer<E>>) -> Option<Box<dyn Layer<E>>> {
+        if let Some(idx) = self.layers.iter().position(|l| l.id() == layer.id()) {
+            let removed = self.layers.remove(idx);
+            removed.on_detach();
+            self.layer_boundary_idx -= 1;
+            Some(removed)
+        } else {
+            None
         }
     }
 
-    pub fn remove(&mut self, layer: &dyn Layer) {
-        match self
-            .layers
-            .iter()
-            .position(|l| l.identifier() == layer.identifier())
-        {
-            Some(idx) => {
-                let layer = self.layers.remove(idx);
-                layer.on_detach();
-            }
-            _ => (),
+    pub fn push_overlay(&mut self, overlay: Box<dyn Layer<E>>) {
+        overlay.on_attach();
+        self.layers.push(overlay);
+    }
+
+    pub fn pop_overlay(&mut self) -> Option<Box<dyn Layer<E>>> {
+        if let Some(overlay) = self.layers.pop() {
+            overlay.on_detach();
+            Some(overlay)
+        } else {
+            None
         }
     }
 }
 
-impl Deref for LayerStack {
-    type Target = [Box<dyn Layer>];
+impl<E: Event> Deref for LayerStack<E> {
+    type Target = [Box<dyn Layer<E>>];
 
     fn deref(&self) -> &Self::Target {
         &self.layers

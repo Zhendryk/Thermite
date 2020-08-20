@@ -1,8 +1,8 @@
-use crate::platform::event::{Event, EventCategory};
+use crate::platform::event::ThermiteEvent;
 use bitflags::bitflags;
 use winit::event::{KeyboardInput, ModifiersState, ScanCode, VirtualKeyCode};
 
-#[derive(Eq, PartialEq, Hash, Debug)]
+#[derive(Eq, PartialEq, Hash, Debug, Clone)]
 pub struct KeyCode {
     physical: ScanCode,
     mapped: Option<VirtualKeyCode>,
@@ -47,19 +47,15 @@ impl From<ModifiersState> for KeyboardModifiers {
     }
 }
 
-#[derive(Debug, Eq, PartialEq)]
+#[derive(Debug, Eq, PartialEq, Hash, Clone)]
 pub enum KeyboardEvent {
     KeyPressed(KeyCode),
     KeyReleased(KeyCode),
     ModifiersChanged(KeyboardModifiers),
 }
 
-impl Event for KeyboardEvent {
-    fn category(&self) -> EventCategory {
-        EventCategory::Keyboard
-    }
-
-    fn to_string(&self) -> String {
-        format!("{:?}", self)
+impl From<KeyboardEvent> for ThermiteEvent {
+    fn from(kb_evt: KeyboardEvent) -> Self {
+        ThermiteEvent::Keyboard(kb_evt)
     }
 }

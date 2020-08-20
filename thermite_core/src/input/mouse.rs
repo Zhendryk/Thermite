@@ -1,23 +1,54 @@
-use crate::platform::event::{Event, EventCategory};
+use crate::platform::event::ThermiteEvent;
 use winit::dpi::PhysicalPosition;
 use winit::event::{MouseButton, MouseScrollDelta};
 
-#[derive(Debug)]
+#[derive(Debug, Eq, PartialEq, Hash, Clone)]
+pub struct ScrollDelta {
+    x: u64,
+    y: u64,
+}
+
+impl From<MouseScrollDelta> for ScrollDelta {
+    fn from(msd: MouseScrollDelta) -> Self {
+        match msd {
+            MouseScrollDelta::LineDelta(x, y) => Self {
+                x: x.round() as u64,
+                y: y.round() as u64,
+            },
+            MouseScrollDelta::PixelDelta(logical_position) => Self {
+                x: logical_position.x.round() as u64,
+                y: logical_position.y.round() as u64,
+            },
+        }
+    }
+}
+
+#[derive(Debug, Eq, PartialEq, Hash, Clone)]
+pub struct PixelCoordinates {
+    x: u64,
+    y: u64,
+}
+impl From<PhysicalPosition<f64>> for PixelCoordinates {
+    fn from(pp: PhysicalPosition<f64>) -> Self {
+        Self {
+            x: pp.x.round() as u64,
+            y: pp.y.round() as u64,
+        }
+    }
+}
+
+#[derive(Debug, Eq, PartialEq, Hash, Clone)]
 pub enum MouseEvent {
     ButtonPressed(MouseButton),
     ButtonReleased(MouseButton),
-    Scroll(MouseScrollDelta),
-    Motion(PhysicalPosition<f64>),
+    Scroll(ScrollDelta),
+    Motion(PixelCoordinates),
     EnteredWindow,
     LeftWindow,
 }
 
-impl Event for MouseEvent {
-    fn category(&self) -> EventCategory {
-        EventCategory::Mouse
-    }
-
-    fn to_string(&self) -> String {
-        format!("{:?}", self)
+impl From<MouseEvent> for ThermiteEvent {
+    fn from(m_evt: MouseEvent) -> Self {
+        ThermiteEvent::Mouse(m_evt)
     }
 }

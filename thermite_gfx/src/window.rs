@@ -1,56 +1,45 @@
 use winit::{
     self,
-    dpi::{LogicalSize, PhysicalSize},
+    dpi::LogicalSize,
     error::OsError,
     event_loop::EventLoop,
-    window::{Window as WinitWindow, WindowBuilder, WindowId},
+    window::{Window as WinitWindow, WindowAttributes, WindowBuilder},
 };
 
 #[derive(Debug)]
-pub struct Window {
-    handle: WinitWindow,
-    title: String,
-    logical_size: LogicalSize<u32>,
-    physical_size: PhysicalSize<u32>,
-    dpi: f64,
-    event_loop: Option<EventLoop<()>>,
+pub struct Window<L: 'static> {
+    handle: WinitWindow, // ! Attribute altering functions accessed through here
+    event_loop: Option<EventLoop<L>>,
 }
 
-// TODO: Try and see if we can encapsulate user input related to the window into
-//       some function which accepts a map of input->callback or something..., that
-//       way we don't need a huge input loop in our main.rs.
-// TODO (cont.): See if ^^ this can also apply to the event loop
-impl Window {
+impl<L: 'static> Window<L> {
     /// Constructs a new `Window` with the given `title` and `size`.
     ///
     /// It's possible for the window creation to fail (`OsError`), but this is unlikely.
-    pub fn new<T: Into<String>>(title: T, size: [u32; 2]) -> Result<Self, OsError> {
-        let event_loop = EventLoop::new();
-        let title_str = title.into();
-        let (logical_size, physical_size, dpi) = {
-            let dpi = event_loop.primary_monitor().scale_factor();
-            let logical: LogicalSize<u32> = size.into();
-            let physical: PhysicalSize<u32> = logical.to_physical(dpi.clone());
-            (logical, physical, dpi)
-        };
-        let window = WindowBuilder::new()
-            .with_title(title_str.clone())
-            .with_inner_size(logical_size.clone())
-            .build(&event_loop)?;
+    pub fn new<T>(title: T, size: [u32; 2]) -> Result<Self, OsError>
+    where
+        T: Into<String>,
+    {
+        let event_loop = EventLoop::<L>::with_user_event();
+        let logical_pixel_size: LogicalSize<u32> = size.into();
         Ok(Self {
-            handle: window,
-            title: title_str,
-            logical_size: logical_size,
-            physical_size: physical_size,
-            dpi: dpi,
-            // event_loop: event_loop,
+            handle: WindowBuilder::new()
+                .with_title(title)
+                .with_inner_size(logical_pixel_size.clone())
+                .build(&event_loop)?,
             event_loop: Option::from(event_loop),
         })
     }
 
-    /// Returns this `Window`'s unique identifier
-    pub fn id(&self) -> WindowId {
-        self.handle.id()
+    /// Creates a `Window` using the given `WindowAttributes`
+    pub fn from_attributes(attributes: WindowAttributes) -> Result<Self, OsError> {
+        let event_loop = EventLoop::<L>::with_user_event();
+        let mut builder = WindowBuilder::new();
+        builder.window = attributes;
+        Ok(Self {
+            handle: builder.build(&event_loop)?,
+            event_loop: Option::from(event_loop),
+        })
     }
 
     /// Returns a reference to the winit handle for this `Window`
@@ -58,35 +47,17 @@ impl Window {
         &self.handle
     }
 
-    /// Returns a reference to the title of this `Window`
-    pub fn title(&self) -> &str {
-        &self.title
-    }
-
-    /// Returns a reference to the logical (physical pixels scaled to dpi) dimensions of this `Window`
-    pub fn logical_size(&self) -> &LogicalSize<u32> {
-        &self.logical_size
-    }
-
-    /// Returns a reference to the physical (actual number of pixels) dimensions of this `Window`
-    pub fn physical_size(&self) -> &PhysicalSize<u32> {
-        &self.physical_size
-    }
-
-    /// Returns a reference to the dpi (dots per inch) of this `Window`
-    pub fn dpi(&self) -> &f64 {
-        &self.dpi
-    }
-
-    /// Returns the `EventLoop` associated with this `Window`
-    pub fn event_loop(&mut self) -> EventLoop<()> {
+    /// Moves the `EventLoop` associated with this `Window` out of it for usage.
+    ///
+    /// **NOTE:** Can only be done once!
+    pub fn event_loop(&mut self) -> EventLoop<L> {
         self.event_loop
             .take()
-            .expect("Could not retreive the window's event loop!")
+            .expect("Cannot take more than one event loop from the window!")
     }
 }
 
-impl Default for Window {
+impl<L: 'static> Default for Window<L> {
     /// Makes an 800x600 window with the `Thermite Engine` as the title.
     ///
     /// ### Panics
@@ -96,6 +67,6 @@ impl Default for Window {
             format!("Thermite Engine v{}", env!("CARGO_PKG_VERSION")),
             [800, 600],
         )
-        .expect("Could not create a window!")
+        .expect("Could not create Thermite Engine window!")
     }
 }

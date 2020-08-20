@@ -2,6 +2,7 @@ use crate::input::{keyboard::KeyboardEvent, mouse::MouseEvent};
 use std::collections::HashMap;
 use std::hash::Hash;
 use std::sync::{Arc, RwLock, Weak};
+// NOTE: Heavily inspired by Lakelezz's hey_listen: https://github.com/Lakelezz/hey_listen
 
 // !Wrapper enum required for generic handling and pattern matching of all structures implementing Event
 #[derive(Debug, Eq, PartialEq, Hash, Clone)]

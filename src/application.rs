@@ -1,21 +1,27 @@
 use log::info;
-use std::sync::{Arc, Mutex, RwLock};
+use std::cell::RefCell;
+use std::rc::Rc;
 use thermite_core::{
     input::{keyboard::KeyboardEvent, mouse::MouseEvent},
-    platform::event::{
-        BusRequest, EventBus, Publisher, Subscriber, ThermiteEvent, ThermiteEventType,
+    messaging::{
+        bus::{BusRequest, EventBus},
+        event::{ThermiteEvent, ThermiteEventType},
+        publish::Publisher,
+        subscribe::Subscriber,
     },
     thermite_logging,
 };
-use thermite_gfx::window::Window;
-use thermite_gfx::winit::{
-    event::{ElementState, Event as WinitEvent, WindowEvent},
-    event_loop::ControlFlow,
+use thermite_gfx::{
+    window::Window,
+    winit::{
+        event::{ElementState, Event as WinitEvent, WindowEvent},
+        event_loop::ControlFlow,
+    },
 };
 
 // ============================== TEST STRUCTS ============================== //
 pub struct TestSubscriber {}
-impl Subscriber<ThermiteEvent> for TestSubscriber {
+impl Subscriber<ThermiteEventType, ThermiteEvent> for TestSubscriber {
     // ! Although we get a ThermiteEvent enum, it is guaranteed to be only of the category that we are subscribed to
     fn on_event(&self, event: &ThermiteEvent) -> BusRequest {
         info!("Test subscriber received event: {:?}", event);
@@ -30,19 +36,21 @@ impl Publisher<ThermiteEventType, ThermiteEvent> for TestPublisher {}
 type ThermiteEventBus = EventBus<ThermiteEventType, ThermiteEvent>;
 // TODO: Make this a Singleton
 pub struct Application {
-    event_bus: Arc<Mutex<ThermiteEventBus>>,
+    event_bus: Rc<RefCell<ThermiteEventBus>>,
     window: Window<ThermiteEvent>,
-    publ: Arc<Mutex<TestPublisher>>, // TODO: Figure out how to get publishers and subscribers to operate from other parts of the application
-    sub: Arc<RwLock<TestSubscriber>>,
+    publ: Rc<TestPublisher>, // TODO: Figure out how to get publishers and subscribers to operate from other parts of the application
+    sub: Rc<TestSubscriber>,
 }
 
 impl Default for Application {
     fn default() -> Self {
         Self {
-            event_bus: Arc::new(Mutex::new(EventBus::default())),
+            event_bus: Rc::new(RefCell::new(
+                EventBus::<ThermiteEventType, ThermiteEvent>::default(),
+            )),
             window: Window::default(),
-            publ: Arc::new(Mutex::new(TestPublisher {})),
-            sub: Arc::new(RwLock::new(TestSubscriber {})),
+            publ: Rc::new(TestPublisher {}),
+            sub: Rc::new(TestSubscriber {}),
         }
     }
 }
@@ -50,10 +58,12 @@ impl Default for Application {
 impl Application {
     pub fn new(name: &str, size: [u32; 2]) -> Self {
         Self {
-            event_bus: Arc::new(Mutex::new(EventBus::default())),
+            event_bus: Rc::new(RefCell::new(
+                EventBus::<ThermiteEventType, ThermiteEvent>::default(),
+            )),
             window: Window::new(name, size).expect("Couldn't create window"),
-            publ: Arc::new(Mutex::new(TestPublisher {})),
-            sub: Arc::new(RwLock::new(TestSubscriber {})),
+            publ: Rc::new(TestPublisher {}),
+            sub: Rc::new(TestSubscriber {}),
         }
     }
 
@@ -61,8 +71,8 @@ impl Application {
         thermite_logging::init().expect("Couldn't initialize logging");
         // Subscribe our subscriber to Input events
         self.event_bus
-            .lock()
-            .unwrap()
+            .try_borrow_mut()
+            .expect("Couldn't borrow event bus as mutable")
             .subscribe(&self.sub, ThermiteEventType::Input);
     }
 
@@ -86,41 +96,56 @@ impl Application {
                     WindowEvent::KeyboardInput { input, .. } => match input.state {
                         ElementState::Pressed => {
                             let evt = KeyboardEvent::KeyPressed(input.into());
-                            publ.lock()
-                                .unwrap()
-                                .publish_event(&evt.into(), &mut eb.lock().unwrap());
+                            publ.publish_event(
+                                &evt.into(),
+                                &mut eb
+                                    .try_borrow_mut()
+                                    .expect("Couldn't borrow the event bus as mutable"),
+                            );
                         }
                         ElementState::Released => {
                             let evt = KeyboardEvent::KeyReleased(input.into());
-                            publ.lock()
-                                .unwrap()
-                                .publish_event(&evt.into(), &mut eb.lock().unwrap());
+                            publ.publish_event(
+                                &evt.into(),
+                                &mut eb
+                                    .try_borrow_mut()
+                                    .expect("Couldn't borrow the event bus as mutable"),
+                            );
                         }
                     },
                     WindowEvent::ModifiersChanged(modifiers_state) => {
-                        eb.lock().unwrap().dispatch_event(
-                            &KeyboardEvent::ModifiersChanged(modifiers_state.into()).into(),
-                        )
+                        // eb.lock().unwrap().dispatch_event(
+                        //     &KeyboardEvent::ModifiersChanged(modifiers_state.into()).into(),
+                        // )
                     }
                     WindowEvent::MouseInput { state, button, .. } => match state {
                         ElementState::Pressed => {
                             let evt = MouseEvent::ButtonPressed(button);
-                            publ.lock()
-                                .unwrap()
-                                .publish_event(&evt.into(), &mut eb.lock().unwrap());
+                            publ.publish_event(
+                                &evt.into(),
+                                &mut eb
+                                    .try_borrow_mut()
+                                    .expect("Couldn't borrow the event bus as mutable"),
+                            );
                         }
                         ElementState::Released => {
                             let evt = MouseEvent::ButtonReleased(button);
-                            publ.lock()
-                                .unwrap()
-                                .publish_event(&evt.into(), &mut eb.lock().unwrap());
+                            publ.publish_event(
+                                &evt.into(),
+                                &mut eb
+                                    .try_borrow_mut()
+                                    .expect("Couldn't borrow the event bus as mutable"),
+                            );
                         }
                     },
                     WindowEvent::MouseWheel { delta, .. } => {
                         let evt = MouseEvent::Scroll(delta.into());
-                        publ.lock()
-                            .unwrap()
-                            .publish_event(&evt.into(), &mut eb.lock().unwrap());
+                        publ.publish_event(
+                            &evt.into(),
+                            &mut eb
+                                .try_borrow_mut()
+                                .expect("Couldn't borrow the event bus as mutable"),
+                        );
                     }
                     WindowEvent::CursorMoved { position, .. } => {
                         // ! Leaving this commented out for now as it's really noisy
@@ -131,15 +156,21 @@ impl Application {
                     }
                     WindowEvent::CursorEntered { .. } => {
                         let evt = MouseEvent::EnteredWindow;
-                        publ.lock()
-                            .unwrap()
-                            .publish_event(&evt.into(), &mut eb.lock().unwrap());
+                        publ.publish_event(
+                            &evt.into(),
+                            &mut eb
+                                .try_borrow_mut()
+                                .expect("Couldn't borrow the event bus as mutable"),
+                        );
                     }
                     WindowEvent::CursorLeft { .. } => {
                         let evt = MouseEvent::LeftWindow;
-                        publ.lock()
-                            .unwrap()
-                            .publish_event(&evt.into(), &mut eb.lock().unwrap());
+                        publ.publish_event(
+                            &evt.into(),
+                            &mut eb
+                                .try_borrow_mut()
+                                .expect("Couldn't borrow the event bus as mutable"),
+                        );
                     }
                     _ => (),
                 },

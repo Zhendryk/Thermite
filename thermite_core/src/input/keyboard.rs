@@ -1,4 +1,4 @@
-use crate::platform::event::ThermiteEvent;
+use crate::messaging::event::ThermiteEvent;
 use bitflags::bitflags;
 use winit::event::{KeyboardInput, ModifiersState, ScanCode, VirtualKeyCode};
 

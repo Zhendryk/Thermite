@@ -1,23 +1,23 @@
-use crate::platform::event::ThermiteEvent;
+use crate::messaging::event::ThermiteEvent;
 use winit::dpi::PhysicalPosition;
 use winit::event::{MouseButton, MouseScrollDelta};
 
 #[derive(Debug, Eq, PartialEq, Hash, Clone)]
 pub struct ScrollDelta {
-    x: u64,
-    y: u64,
+    x: i64,
+    y: i64,
 }
 
 impl From<MouseScrollDelta> for ScrollDelta {
     fn from(msd: MouseScrollDelta) -> Self {
         match msd {
             MouseScrollDelta::LineDelta(x, y) => Self {
-                x: x.round() as u64,
-                y: y.round() as u64,
+                x: x.round() as i64,
+                y: y.round() as i64,
             },
             MouseScrollDelta::PixelDelta(logical_position) => Self {
-                x: logical_position.x.round() as u64,
-                y: logical_position.y.round() as u64,
+                x: logical_position.x.round() as i64,
+                y: logical_position.y.round() as i64,
             },
         }
     }

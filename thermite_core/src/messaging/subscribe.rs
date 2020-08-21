@@ -19,6 +19,8 @@ where
     T: Eq + PartialEq + Hash + Clone,
     E: Event<T> + Eq + PartialEq + Hash + Clone,
 {
+    // TODO: Should subscribers have a UUID? For identification/unsubscription purposes.
+
     fn on_event(&self, event: &E) -> BusRequest;
 }
 
@@ -32,5 +34,7 @@ where
     T: Eq + PartialEq + Hash + Clone + Send + Sync,
     E: TSEvent<T> + Eq + PartialEq + Hash + Clone + Send + Sync,
 {
+    // TODO: Should subscribers have a UUID? For identification/unsubscription purposes.
+
     fn on_event(&self, event: &E) -> BusRequest;
 }

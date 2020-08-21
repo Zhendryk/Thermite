@@ -1,6 +1,6 @@
 use crate::primitives::vertex::Vertex;
 use bincode;
-use thermite_core::resources::{Resource, ResourceError};
+use thermite_core::tools::resources::{Resource, ResourceError};
 
 /// A 3D mesh
 pub struct Mesh {

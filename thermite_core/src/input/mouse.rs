@@ -1,5 +1,5 @@
 use winit::dpi::PhysicalPosition;
-use winit::event::{MouseButton, MouseScrollDelta};
+use winit::event::MouseScrollDelta;
 
 #[derive(Debug, Eq, PartialEq, Hash, Clone)]
 pub struct ScrollDelta {

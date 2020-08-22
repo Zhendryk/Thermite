@@ -1,4 +1,3 @@
-use crate::messaging::event::ThermiteEvent;
 use bitflags::bitflags;
 use winit::event::{KeyboardInput, ModifiersState, ScanCode, VirtualKeyCode};
 
@@ -44,18 +43,5 @@ impl From<ModifiersState> for KeyboardModifiers {
             keyboard_modifiers |= Self::LOGO;
         }
         keyboard_modifiers
-    }
-}
-
-#[derive(Debug, Eq, PartialEq, Hash, Clone)]
-pub enum KeyboardEvent {
-    KeyPressed(KeyCode),
-    KeyReleased(KeyCode),
-    ModifiersChanged(KeyboardModifiers),
-}
-
-impl From<KeyboardEvent> for ThermiteEvent {
-    fn from(kb_evt: KeyboardEvent) -> Self {
-        ThermiteEvent::Keyboard(kb_evt)
     }
 }

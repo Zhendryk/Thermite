@@ -1,4 +1,3 @@
-use crate::messaging::event::ThermiteEvent;
 use winit::dpi::PhysicalPosition;
 use winit::event::{MouseButton, MouseScrollDelta};
 
@@ -34,21 +33,5 @@ impl From<PhysicalPosition<f64>> for PixelCoordinates {
             x: pp.x.round() as u64,
             y: pp.y.round() as u64,
         }
-    }
-}
-
-#[derive(Debug, Eq, PartialEq, Hash, Clone)]
-pub enum MouseEvent {
-    ButtonPressed(MouseButton),
-    ButtonReleased(MouseButton),
-    Scroll(ScrollDelta),
-    Motion(PixelCoordinates),
-    EnteredWindow,
-    LeftWindow,
-}
-
-impl From<MouseEvent> for ThermiteEvent {
-    fn from(m_evt: MouseEvent) -> Self {
-        ThermiteEvent::Mouse(m_evt)
     }
 }

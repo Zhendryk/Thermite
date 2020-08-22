@@ -16,3 +16,4 @@ thermite_core = { path = "thermite_core", version = "=0.1.0" }
 thermite_gfx = { path = "thermite_gfx", version = "=0.1.0" }
 log = "=0.4.11"
 simple_logger = "=1.6.0"
+uuid = "=0.8.1"

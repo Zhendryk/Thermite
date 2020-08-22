@@ -1,16 +1,8 @@
-use log::info;
+use crate::event::*;
 use std::cell::RefCell;
 use std::rc::Rc;
-use thermite_core::{
-    input::{keyboard::KeyboardEvent, mouse::MouseEvent},
-    messaging::{
-        bus::{BusRequest, EventBus},
-        event::{ThermiteEvent, ThermiteEventType},
-        publish::Publisher,
-        subscribe::Subscriber,
-    },
-    thermite_logging,
-};
+use thermite_core::messaging::rc::publish::Publisher;
+use thermite_core::{messaging::rc::bus::EventBus, thermite_logging};
 use thermite_gfx::{
     window::Window,
     winit::{
@@ -18,22 +10,8 @@ use thermite_gfx::{
         event_loop::ControlFlow,
     },
 };
+use uuid::Uuid;
 
-// ============================== TEST STRUCTS ============================== //
-pub struct TestSubscriber {}
-impl Subscriber<ThermiteEventType, ThermiteEvent> for TestSubscriber {
-    // ! Although we get a ThermiteEvent enum, it is guaranteed to be only of the category that we are subscribed to
-    fn on_event(&self, event: &ThermiteEvent) -> BusRequest {
-        info!("Test subscriber received event: {:?}", event);
-        BusRequest::NoActionNeeded
-    }
-}
-
-pub struct TestPublisher {}
-impl Publisher<ThermiteEventType, ThermiteEvent> for TestPublisher {}
-// ============================== END TEST STRUCTS ============================== //
-
-type ThermiteEventBus = EventBus<ThermiteEventType, ThermiteEvent>;
 // TODO: Make this a Singleton
 pub struct Application {
     event_bus: Rc<RefCell<ThermiteEventBus>>, // Single-threaded, for now
@@ -50,7 +28,9 @@ impl Default for Application {
             )),
             window: Window::default(),
             publ: Rc::new(TestPublisher {}),
-            sub: Rc::new(TestSubscriber {}),
+            sub: Rc::new(TestSubscriber {
+                id: Uuid::default(),
+            }),
         }
     }
 }
@@ -63,7 +43,9 @@ impl Application {
             )),
             window: Window::new(name, size).expect("Couldn't create window"),
             publ: Rc::new(TestPublisher {}),
-            sub: Rc::new(TestSubscriber {}),
+            sub: Rc::new(TestSubscriber {
+                id: Uuid::default(),
+            }),
         }
     }
 
